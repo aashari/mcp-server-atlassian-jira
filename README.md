@@ -103,6 +103,8 @@ MCP tools use `snake_case` names, `camelCase` parameters, and return Markdown-fo
 - **jira_ls_comments**: Lists comments for an issue (`issueIdOrKey`: str req, `limit`: num opt, `startAt`: num opt, `orderBy`: str opt). Use: Read issue discussion.
 - **jira_add_comment**: Adds comment to an issue (`issueIdOrKey`: str req, `commentBody`: str req). Use: Add feedback to issues.
 - **jira_ls_statuses**: Lists available workflow statuses (`projectKeyOrId`: str opt). Use: Check valid status transitions.
+- **jira_ls_worklogs**: Lists worklogs for a specific issue (`issueIdOrKey`: str req). Use: View time tracking entries.
+- **jira_add_worklog**: Adds a worklog to an issue (`issueIdOrKey`: str req, `timeSpentSeconds`: num req, `comment`: str opt, `started`: str opt). Use: Log time spent on tasks.
 
 <details>
 <summary><b>MCP Tool Examples (Click to expand)</b></summary>
