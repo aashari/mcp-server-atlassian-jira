@@ -2,6 +2,7 @@
 
 A Node.js/TypeScript Model Context Protocol (MCP) server for Atlassian Jira Cloud. Enables AI systems (e.g., LLMs like Claude or Cursor AI) to securely interact with your Jira projects, issues, comments, and related development information in real time.
 
+[![smithery badge](https://smithery.ai/badge/@aashari/mcp-server-atlassian-jira)](https://smithery.ai/server/@aashari/mcp-server-atlassian-jira)
 [![NPM Version](https://img.shields.io/npm/v/@aashari/mcp-server-atlassian-jira)](https://www.npmjs.com/package/@aashari/mcp-server-atlassian-jira)
 [![Build Status](https://img.shields.io/github/workflow/status/aashari/mcp-server-atlassian-jira/CI)](https://github.com/aashari/mcp-server-atlassian-jira/actions)
 
@@ -75,6 +76,14 @@ npx -y @aashari/mcp-server-atlassian-jira ls-projects
 ```bash
 npm install -g @aashari/mcp-server-atlassian-jira
 mcp-atlassian-jira ls-projects
+```
+
+### Installing via Smithery
+
+To install Atlassian Jira MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@aashari/mcp-server-atlassian-jira):
+
+```bash
+npx -y @smithery/cli install @aashari/mcp-server-atlassian-jira --client claude
 ```
 
 ### Step 4: Connect to AI Assistant

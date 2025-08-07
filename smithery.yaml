@@ -1,0 +1,51 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required: []
+    properties:
+      debug:
+        type: boolean
+        default: false
+        description: Enable debug logging
+      atlassianApiToken:
+        type: string
+        default: ""
+        description: API token for Atlassian API access
+      atlassianSiteName:
+        type: string
+        default: ""
+        description: Your Atlassian site name, e.g., 'your-instance' for
+          'your-instance.atlassian.net'
+      atlassianUserEmail:
+        type: string
+        default: ""
+        description: Your Atlassian account email address
+  exampleConfig:
+    debug: true
+    atlassianApiToken: YOUR_API_TOKEN
+    atlassianSiteName: your-instance
+    atlassianUserEmail: your-email@example.com
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => {
+      // Setup environment variables based on provided config
+      const env = Object.assign({}, process.env);
+      if (config.debug) {
+        env.DEBUG = 'true';
+      }
+      if (config.atlassianSiteName) {
+        env.ATLASSIAN_SITE_NAME = config.atlassianSiteName;
+      }
+      if (config.atlassianUserEmail) {
+        env.ATLASSIAN_USER_EMAIL = config.atlassianUserEmail;
+      }
+      if (config.atlassianApiToken) {
+        env.ATLASSIAN_API_TOKEN = config.atlassianApiToken;
+      }
+      return { command: 'node', args: ['dist/index.js'], env };
+    }
