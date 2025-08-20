@@ -1,0 +1,10 @@
+# Enable debug logging
+DEBUG=false
+
+# Atlassian Configuration (required for Jira access)
+# Your Jira site name (for https://your-instance.atlassian.net)
+ATLASSIAN_SITE_NAME=your-instance
+# Your Atlassian account email
+ATLASSIAN_USER_EMAIL=your-email@example.com  
+# Your Atlassian API token (generate at https://id.atlassian.com/manage-profile/security/api-tokens)
+ATLASSIAN_API_TOKEN=
