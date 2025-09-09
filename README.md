@@ -1,3 +1,5 @@
+[![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/aashari-mcp-server-atlassian-jira-badge.png)](https://mseep.ai/app/aashari-mcp-server-atlassian-jira)
+
 # Connect AI to Your Jira Projects
 
 Transform how you manage and track your work by connecting Claude, Cursor AI, and other AI assistants directly to your Jira projects, issues, and workflows. Get instant project insights, streamline issue management, and enhance your team collaboration.
