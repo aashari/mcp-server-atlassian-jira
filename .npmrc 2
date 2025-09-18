@@ -1,0 +1,7 @@
+# This file is for local development only
+# The CI/CD workflow will create its own .npmrc files
+
+# For npm registry
+registry=https://registry.npmjs.org/
+
+# GitHub Packages configuration removed

@@ -1,0 +1,43 @@
+# Source code
+src/
+*.ts
+!*.d.ts
+
+# Tests
+*.test.ts
+*.test.js
+__tests__/
+coverage/
+jest.config.js
+
+# Development files
+.github/
+.git/
+.gitignore
+.eslintrc
+.eslintrc.js
+.eslintignore
+.prettierrc
+.prettierrc.js
+tsconfig.json
+*.tsbuildinfo
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# CI/CD
+.travis.yml
+
+# Runtime data
+.env
+.env.* 
