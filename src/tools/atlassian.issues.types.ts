@@ -92,9 +92,77 @@ const GetIssueToolArgs = z.object({
 
 type GetIssueToolArgsType = z.infer<typeof GetIssueToolArgs>;
 
+/**
+ * Arguments for updating a Jira issue
+ */
+const UpdateIssueToolArgs = z.object({
+	/**
+	 * Issue identifier (ID or key)
+	 */
+	issueIdOrKey: z
+		.string()
+		.describe(
+			'The ID or key of the Jira issue to update (e.g., "10001" or "PROJ-123"). This is required and must be a valid issue ID or key from your Jira instance.',
+		),
+
+	/**
+	 * Fields to update
+	 */
+	fields: z
+		.record(z.string(), z.unknown())
+		.optional()
+		.describe(
+			'Object containing the fields to update. Keys are field names (e.g., "summary", "description") or custom field IDs (e.g., "customfield_10001"). Values depend on the field type. Text values for rich text fields (description, custom text fields) are automatically converted to Atlassian Document Format (ADF). Supports markdown formatting.',
+		),
+
+	/**
+	 * Update operations
+	 */
+	update: z
+		.record(z.string(), z.array(z.unknown()))
+		.optional()
+		.describe(
+			'Object containing update operations for fields that support them (e.g., adding/removing labels, components). Each key is a field name and value is an array of operations.',
+		),
+
+	/**
+	 * Whether to notify users
+	 */
+	notifyUsers: z
+		.boolean()
+		.optional()
+		.describe(
+			'Whether to send notifications to users about the update. Defaults to true.',
+		),
+
+	/**
+	 * Whether to return the updated issue
+	 */
+	returnIssue: z
+		.boolean()
+		.optional()
+		.describe(
+			'Whether to return the updated issue data in the response. Defaults to false for better performance.',
+		),
+
+	/**
+	 * Fields to expand in the response (only used if returnIssue is true)
+	 */
+	expand: z
+		.array(z.string())
+		.optional()
+		.describe(
+			'Fields to expand in the response when returnIssue is true (e.g., ["changelog", "renderedFields"]).',
+		),
+});
+
+type UpdateIssueToolArgsType = z.infer<typeof UpdateIssueToolArgs>;
+
 export {
 	ListIssuesToolArgs,
 	type ListIssuesToolArgsType,
 	GetIssueToolArgs,
 	type GetIssueToolArgsType,
+	UpdateIssueToolArgs,
+	type UpdateIssueToolArgsType,
 };

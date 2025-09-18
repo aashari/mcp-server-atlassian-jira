@@ -702,6 +702,42 @@ const CreateIssueResponseSchema = z.object({
 });
 export type CreateIssueResponse = z.infer<typeof CreateIssueResponseSchema>;
 
+/**
+ * Issue update data
+ */
+export interface UpdateIssueData {
+	fields?: Record<string, unknown>;
+	update?: Record<string, unknown[]>;
+	historyMetadata?: Record<string, unknown>;
+	properties?: Array<{
+		key: string;
+		value: unknown;
+	}>;
+}
+
+/**
+ * Parameters for updating an issue
+ */
+export interface UpdateIssueParams extends UpdateIssueData {
+	notifyUsers?: boolean;
+	overrideScreenSecurity?: boolean;
+	overrideEditableFlag?: boolean;
+	returnIssue?: boolean;
+	expand?: string[];
+}
+
+/**
+ * Response from updating an issue
+ */
+const UpdateIssueResponseSchema = z.object({
+	id: z.string().optional(),
+	key: z.string().optional(),
+	self: z.string().optional(),
+	// When returnIssue is true, the full issue is returned
+	fields: z.record(z.string(), z.unknown()).optional(),
+});
+export type UpdateIssueResponse = z.infer<typeof UpdateIssueResponseSchema>;
+
 // Export schemas needed by the service implementation
 export {
 	IssueSchema,
@@ -714,4 +750,5 @@ export {
 	CommentBodySchema,
 	CreateMetaResponseSchema,
 	CreateIssueResponseSchema,
+	UpdateIssueResponseSchema,
 };

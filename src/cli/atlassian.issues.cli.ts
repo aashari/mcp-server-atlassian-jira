@@ -1,8 +1,9 @@
 import { Command } from 'commander';
 import { Logger } from '../utils/logger.util.js';
 import { handleCliError } from '../utils/error.util.js';
-import { ListIssuesToolArgsType } from '../tools/atlassian.issues.types.js';
+import { ListIssuesToolArgsType, UpdateIssueToolArgsType } from '../tools/atlassian.issues.types.js';
 import atlassianIssuesController from '../controllers/atlassian.issues.controller.js';
+import atlassianIssuesUpdateController from '../controllers/atlassian.issues.update.controller.js';
 import { formatHeading } from '../utils/formatter.util.js';
 
 /**
@@ -31,6 +32,7 @@ function register(program: Command): void {
 
 	registerListIssuesCommand(program);
 	registerGetIssueCommand(program);
+	registerUpdateIssueCommand(program);
 
 	methodLogger.debug('CLI commands registered successfully');
 }
@@ -172,6 +174,168 @@ function registerGetIssueCommand(program: Command): void {
 				// Print the content
 				console.log(result.content);
 			} catch (error) {
+				handleCliError(error);
+			}
+		});
+}
+
+/**
+ * Register the command for updating a Jira issue
+ * @param program - The Commander program instance
+ */
+function registerUpdateIssueCommand(program: Command): void {
+	program
+		.command('update-issue')
+		.description(
+			'Update fields of an existing Jira issue using its ID or key. Supports standard and custom fields.',
+		)
+		.requiredOption(
+			'-i, --issue-id-or-key <idOrKey>',
+			'The ID or key of the Jira issue to update (e.g., "10001" or "PROJ-123"). This is required and must be a valid issue ID or key from your Jira instance.',
+		)
+		.option(
+			'-s, --summary <summary>',
+			'Update the issue summary/title.',
+		)
+		.option(
+			'-d, --description <description>',
+			'Update the issue description. Supports markdown format which will be converted to Atlassian Document Format (ADF).',
+		)
+		.option(
+			'-p, --priority <priority>',
+			'Update the issue priority. Can be priority ID (e.g., "1") or priority name (e.g., "High").',
+		)
+		.option(
+			'-a, --assignee <assignee>',
+			'Update the issue assignee. Should be the account ID of the user.',
+		)
+		.option(
+			'-l, --labels <labels...>',
+			'Update the issue labels. Provide multiple labels as separate arguments.',
+		)
+		.option(
+			'-c, --components <components...>',
+			'Update the issue components. Can be component IDs or names.',
+		)
+		.option(
+			'-f, --fix-versions <versions...>',
+			'Update the issue fix versions. Can be version IDs or names.',
+		)
+		.option(
+			'--field <field=value>',
+			'Update any field (standard or custom). Format: fieldName=value or customfield_10001=value. Can be used multiple times. Rich text fields support markdown.',
+			(value, previous) => {
+				const [field, ...valueParts] = value.split('=');
+				const fieldValue = valueParts.join('='); // Rejoin in case value contains '='
+				if (!field || fieldValue === undefined) {
+					throw new Error('Field format should be: fieldName=value or customfield_10001=value');
+				}
+				return { ...previous, [field]: fieldValue };
+			},
+			{},
+		)
+		.option(
+			'--fields <json>',
+			'Update fields using JSON format. Example: \'{"summary":"New title","customfield_10001":"Custom value"}\'',
+		)
+		.option(
+			'--notify-users',
+			'Send notifications to users about the update (default: true).',
+		)
+		.option(
+			'--no-notify-users',
+			'Do not send notifications to users about the update.',
+		)
+		.option(
+			'--return-issue',
+			'Return the updated issue details in the response.',
+		)
+		.option(
+			'--expand <fields...>',
+			'Fields to expand in the response when --return-issue is used (e.g., changelog, renderedFields).',
+		)
+		.action(async (options) => {
+			const actionLogger = Logger.forContext(
+				'cli/atlassian.issues.cli.ts',
+				'update-issue',
+			);
+
+			try {
+				actionLogger.debug('Processing command options:', options);
+
+				// Validate issue ID/key
+				if (
+					!options.issueIdOrKey ||
+					options.issueIdOrKey.trim() === ''
+				) {
+					throw new Error('Issue ID or key must not be empty.');
+				}
+
+				// Build fields object
+				const fields: Record<string, unknown> = {};
+				
+				// Add standard fields
+				if (options.summary) {
+					fields.summary = options.summary;
+				}
+				if (options.description) {
+					fields.description = options.description;
+				}
+				if (options.priority) {
+					fields.priority = options.priority;
+				}
+				if (options.assignee) {
+					fields.assignee = options.assignee;
+				}
+				if (options.labels) {
+					fields.labels = options.labels;
+				}
+				if (options.components) {
+					fields.components = options.components;
+				}
+				if (options.fixVersions) {
+					fields.fixVersions = options.fixVersions;
+				}
+
+				// Add fields from --field options
+				if (options.field && Object.keys(options.field).length > 0) {
+					Object.assign(fields, options.field);
+				}
+
+				// Parse JSON fields if provided
+				if (options.fields) {
+					try {
+						const jsonFields = JSON.parse(options.fields);
+						Object.assign(fields, jsonFields);
+					} catch (error) {
+						throw new Error(`Invalid JSON in --fields: ${error instanceof Error ? error.message : String(error)}`);
+					}
+				}
+
+				// Build the update arguments
+				const updateArgs: UpdateIssueToolArgsType = {
+					issueIdOrKey: options.issueIdOrKey,
+					...(Object.keys(fields).length > 0 && { fields }),
+					notifyUsers: options.notifyUsers !== false, // Default to true unless explicitly set to false
+					returnIssue: options.returnIssue || false,
+					...(options.expand && { expand: options.expand }),
+				};
+
+				// Validate that at least some fields are being updated
+				if (!updateArgs.fields) {
+					throw new Error('No fields specified for update. Use options like --summary, --description, --field, or --fields.');
+				}
+
+				actionLogger.debug(`Updating issue: ${options.issueIdOrKey}`, updateArgs);
+
+				const result = await atlassianIssuesUpdateController.updateIssue(updateArgs);
+
+				actionLogger.debug('Successfully updated issue');
+
+				// Print the content
+				console.log(result.content);
+			} catch (error) {
+				actionLogger.error('Operation failed:', error);
 				handleCliError(error);
 			}
 		});

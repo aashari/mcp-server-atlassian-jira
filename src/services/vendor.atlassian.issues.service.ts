@@ -25,6 +25,9 @@ import {
 	CreateIssueParams,
 	CreateIssueResponse,
 	CreateIssueResponseSchema,
+	UpdateIssueParams,
+	UpdateIssueResponse,
+	UpdateIssueResponseSchema,
 } from './vendor.atlassian.issues.types.js';
 import {
 	createAuthMissingError,
@@ -979,6 +982,134 @@ async function createIssue(
 	}
 }
 
+/**
+ * Update an existing Jira issue
+ *
+ * Updates the fields of an existing issue. Supports both standard and custom fields.
+ * Can optionally return the updated issue data.
+ *
+ * @async
+ * @memberof VendorAtlassianIssuesService
+ * @param {string} idOrKey - The ID or key of the issue to update
+ * @param {UpdateIssueParams} params - Update parameters with fields data
+ * @param {Record<string, unknown>} [params.fields] - Issue fields to update
+ * @param {Record<string, unknown[]>} [params.update] - Update operations to perform
+ * @param {boolean} [params.notifyUsers] - Whether to send notifications to users
+ * @param {boolean} [params.overrideScreenSecurity] - Whether to override screen security
+ * @param {boolean} [params.overrideEditableFlag] - Whether to override editable flag
+ * @param {boolean} [params.returnIssue] - Whether to return the updated issue
+ * @param {string[]} [params.expand] - Issue data to expand in response
+ * @returns {Promise<UpdateIssueResponse>} Promise containing the update response
+ * @throws {Error} If Atlassian credentials are missing or API request fails
+ * @example
+ * // Update issue summary and description
+ * const response = await updateIssue('ABC-123', {
+ *   fields: {
+ *     summary: 'Updated summary',
+ *     description: 'Updated description'
+ *   }
+ * });
+ * 
+ * // Update custom field
+ * const response = await updateIssue('ABC-123', {
+ *   fields: {
+ *     'customfield_10001': 'Custom value'
+ *   }
+ * });
+ */
+async function updateIssue(
+	idOrKey: string,
+	params: UpdateIssueParams,
+): Promise<UpdateIssueResponse> {
+	const methodLogger = Logger.forContext(
+		'services/vendor.atlassian.issues.service.ts',
+		'updateIssue',
+	);
+	methodLogger.debug(
+		`Updating issue ${idOrKey} with params:`,
+		params,
+	);
+
+	const credentials = getAtlassianCredentials();
+	if (!credentials) {
+		throw createAuthMissingError(
+			`Atlassian credentials required to update issue ${idOrKey}`,
+		);
+	}
+
+	try {
+		// Build query parameters
+		const queryParams = new URLSearchParams();
+		if (params.notifyUsers !== undefined) {
+			queryParams.set('notifyUsers', params.notifyUsers.toString());
+		}
+		if (params.overrideScreenSecurity !== undefined) {
+			queryParams.set('overrideScreenSecurity', params.overrideScreenSecurity.toString());
+		}
+		if (params.overrideEditableFlag !== undefined) {
+			queryParams.set('overrideEditableFlag', params.overrideEditableFlag.toString());
+		}
+		if (params.returnIssue !== undefined) {
+			queryParams.set('returnIssue', params.returnIssue.toString());
+		}
+		if (params.expand?.length) {
+			queryParams.set('expand', params.expand.join(','));
+		}
+
+		const queryString = queryParams.toString()
+			? `?${queryParams.toString()}`
+			: '';
+		const path = `${API_PATH}/issue/${idOrKey}${queryString}`;
+
+		methodLogger.debug(`Calling Jira API: ${path}`);
+
+		const requestBody: Record<string, unknown> = {};
+		
+		if (params.fields) {
+			requestBody.fields = params.fields;
+		}
+		if (params.update) {
+			requestBody.update = params.update;
+		}
+		if (params.historyMetadata) {
+			requestBody.historyMetadata = params.historyMetadata;
+		}
+		if (params.properties) {
+			requestBody.properties = params.properties;
+		}
+
+		const rawData = await fetchAtlassian(credentials, path, {
+			method: 'PUT',
+			body: requestBody,
+		});
+
+		// If returnIssue is false or not set, Jira returns 204 No Content
+		// In that case, return a minimal response with just the issue key/id
+		if (!rawData) {
+			return {
+				key: idOrKey,
+			};
+		}
+
+		return validateResponse(
+			rawData,
+			UpdateIssueResponseSchema,
+			`update issue ${idOrKey}`,
+		);
+	} catch (error) {
+		if (error instanceof McpError) {
+			throw error;
+		}
+
+		methodLogger.error(`Unexpected error updating issue ${idOrKey}:`, error);
+		throw createApiError(
+			`Unexpected error updating Jira issue ${idOrKey}: ${error instanceof Error ? error.message : String(error)}`,
+			500,
+			error,
+		);
+	}
+}
+
 export default {
 	search,
 	get,
@@ -990,4 +1121,5 @@ export default {
 	deleteWorklog,
 	getCreateMeta,
 	createIssue,
+	updateIssue,
 };
