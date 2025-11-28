@@ -1,5 +1,11 @@
 import { Logger } from './logger.util.js';
-import { formatSeparator } from './formatter.util.js';
+
+/**
+ * Format a simple separator line
+ */
+function formatSeparator(): string {
+	return '---';
+}
 
 /**
  * Error types for classification

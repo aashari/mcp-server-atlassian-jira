@@ -1,6 +1,24 @@
 import { getAtlassianCredentials, fetchAtlassian } from './transport.util.js';
 import { config } from './config.util.js';
-import { ProjectsResponse } from '../services/vendor.atlassian.projects.types.js';
+
+/**
+ * Generic response type for Jira API paginated results
+ */
+interface PaginatedResponse<T> {
+	values: T[];
+	startAt: number;
+	maxResults: number;
+	total: number;
+}
+
+/**
+ * Minimal project structure for testing
+ */
+interface ProjectSummary {
+	id: string;
+	key: string;
+	name: string;
+}
 
 describe('Transport Utility', () => {
 	// Load configuration before all tests
@@ -79,16 +97,14 @@ describe('Transport Utility', () => {
 			}
 
 			// Make a call to a real API endpoint - project search
-			const result = await fetchAtlassian<ProjectsResponse>(
-				credentials,
-				'/rest/api/3/project/search',
-				{
-					method: 'GET',
-					headers: {
-						'Content-Type': 'application/json',
-					},
+			const result = await fetchAtlassian<
+				PaginatedResponse<ProjectSummary>
+			>(credentials, '/rest/api/3/project/search', {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
 				},
-			);
+			});
 
 			// Verify the response structure from real API
 			expect(result).toHaveProperty('values');
@@ -136,13 +152,11 @@ describe('Transport Utility', () => {
 			}
 
 			// Call the function with a path that doesn't start with a slash
-			const result = await fetchAtlassian<ProjectsResponse>(
-				credentials,
-				'rest/api/3/project/search',
-				{
-					method: 'GET',
-				},
-			);
+			const result = await fetchAtlassian<
+				PaginatedResponse<ProjectSummary>
+			>(credentials, 'rest/api/3/project/search', {
+				method: 'GET',
+			});
 
 			// Verify the response structure from real API
 			expect(result).toHaveProperty('values');
@@ -172,11 +186,9 @@ describe('Transport Utility', () => {
 			};
 
 			// Call a real endpoint with pagination parameter
-			const result = await fetchAtlassian<ProjectsResponse>(
-				credentials,
-				'/rest/api/3/project/search?maxResults=1',
-				options,
-			);
+			const result = await fetchAtlassian<
+				PaginatedResponse<ProjectSummary>
+			>(credentials, '/rest/api/3/project/search?maxResults=1', options);
 
 			// Verify the response structure and pagination
 			expect(result).toHaveProperty('values');

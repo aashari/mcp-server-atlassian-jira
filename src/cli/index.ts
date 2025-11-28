@@ -2,11 +2,7 @@ import { Command } from 'commander';
 import { Logger } from '../utils/logger.util.js';
 import { VERSION, CLI_NAME } from '../utils/constants.util.js';
 
-import atlassianProjectsCommands from './atlassian.projects.cli.js';
-import atlassianIssuesCommands from './atlassian.issues.cli.js';
-import atlassianStatusesCommands from './atlassian.statuses.cli.js';
-import atlassianCommentsCommands from './atlassian.comments.cli.js';
-import atlassianWorklogsCommands from './atlassian.worklogs.cli.js';
+import atlassianApiCommands from './atlassian.api.cli.js';
 
 // Package description
 const DESCRIPTION =
@@ -27,20 +23,8 @@ export async function runCli(args: string[]) {
 	program.name(CLI_NAME).description(DESCRIPTION).version(VERSION);
 
 	// Register CLI commands
-	atlassianProjectsCommands.register(program);
-	cliLogger.debug('Projects commands registered');
-
-	atlassianIssuesCommands.register(program);
-	cliLogger.debug('Issues commands registered');
-
-	atlassianStatusesCommands.register(program);
-	cliLogger.debug('Statuses commands registered');
-
-	atlassianCommentsCommands.register(program);
-	cliLogger.debug('Comments commands registered');
-
-	atlassianWorklogsCommands.register(program);
-	cliLogger.debug('Worklogs commands registered');
+	atlassianApiCommands.register(program);
+	cliLogger.debug('API commands registered');
 
 	// Handle unknown commands
 	program.on('command:*', (operands) => {
