@@ -1,3 +1,32 @@
+# [3.0.0](https://github.com/aashari/mcp-server-atlassian-jira/compare/v2.1.1...v3.0.0) (2025-11-28)
+
+
+* feat!: replace domain-specific tools with generic HTTP method tools ([3fef421](https://github.com/aashari/mcp-server-atlassian-jira/commit/3fef4218b7657b26a4e55bfae7278138755f837e))
+
+
+### BREAKING CHANGES
+
+* This release replaces 8+ specific tools with 5 generic HTTP method tools.
+
+Before (v2.x):
+- jira_ls_projects, jira_get_project, jira_ls_issues, jira_get_issue
+- jira_create_issue, jira_ls_comments, jira_add_comment, jira_ls_statuses
+
+After (v3.0):
+- jira_get - GET any Jira API endpoint
+- jira_post - POST to any endpoint (create resources)
+- jira_put - PUT to any endpoint (replace resources)
+- jira_patch - PATCH any endpoint (partial updates)
+- jira_delete - DELETE any endpoint
+
+Benefits:
+- Full access to any Jira REST API endpoint
+- JMESPath filtering for response data extraction
+- Consistent interface across all HTTP operations
+- Simplified codebase (removed 64 files, ~13k lines)
+
+Migration examples in README.md
+
 ## [2.1.1](https://github.com/aashari/mcp-server-atlassian-jira/compare/v2.1.0...v2.1.1) (2025-09-09)
 
 
