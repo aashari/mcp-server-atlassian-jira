@@ -27,7 +27,7 @@ export interface AtlassianCredentials {
  * Interface for HTTP request options
  */
 export interface RequestOptions {
-	method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 	headers?: Record<string, string>;
 	body?: unknown;
 }
@@ -267,21 +267,30 @@ export async function fetchAtlassian<T>(
 			}
 		}
 
-		// Clone the response to log its content without consuming it
-		const clonedResponse = response.clone();
-		try {
-			const responseJson = await clonedResponse.json();
-			methodLogger.debug(`Response body:`, responseJson);
-		} catch (error) {
-			methodLogger.debug(`Non-JSON response received:`, { error });
-		}
-
-		// Handle 204 No Content responses
+		// Handle 204 No Content responses (common for DELETE operations)
 		if (response.status === 204) {
-			return undefined as unknown as T;
+			methodLogger.debug('Received 204 No Content response');
+			return {} as T;
 		}
 
-		return response.json() as Promise<T>;
+		// Handle empty responses (some endpoints return 200/201 with no body)
+		const responseText = await response.text();
+		if (!responseText || responseText.trim() === '') {
+			methodLogger.debug('Received empty response body');
+			return {} as T;
+		}
+
+		// For JSON responses, parse the text we already read
+		try {
+			const responseJson = JSON.parse(responseText);
+			methodLogger.debug(`Response body:`, responseJson);
+			return responseJson as T;
+		} catch {
+			methodLogger.debug(
+				`Could not parse response as JSON, returning raw content`,
+			);
+			return responseText as unknown as T;
+		}
 	} catch (error) {
 		methodLogger.error(`Request failed`, error);
 

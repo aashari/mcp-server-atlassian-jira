@@ -10,13 +10,8 @@ import type { Request, Response } from 'express';
 import express from 'express';
 import cors from 'cors';
 
-// Import Jira-specific tools
-import atlassianProjectsTools from './tools/atlassian.projects.tool.js';
-import atlassianIssuesTools from './tools/atlassian.issues.tool.js';
-import atlassianIssuesCreateTools from './tools/atlassian.issues.create.tool.js';
-import atlassianStatusesTools from './tools/atlassian.statuses.tool.js';
-import atlassianCommentsTools from './tools/atlassian.comments.tool.js';
-import atlassianWorklogsTools from './tools/atlassian.worklogs.tool.js';
+// Import tools
+import atlassianApiTools from './tools/atlassian.api.tool.js';
 
 // Create a contextualized logger for this file
 const indexLogger = Logger.forContext('index.ts');
@@ -67,25 +62,7 @@ export async function startServer(
 
 	// Register tools
 	serverLogger.info('Registering MCP tools...');
-
-	atlassianProjectsTools.registerTools(serverInstance);
-	serverLogger.debug('Registered Projects tools');
-
-	atlassianIssuesTools.registerTools(serverInstance);
-	serverLogger.debug('Registered Issues tools');
-
-	atlassianIssuesCreateTools.registerTools(serverInstance);
-	serverLogger.debug('Registered Issues Create tools');
-
-	atlassianStatusesTools.registerTools(serverInstance);
-	serverLogger.debug('Registered Statuses tools');
-
-	atlassianCommentsTools.registerTools(serverInstance);
-	serverLogger.debug('Registered Comments tools');
-
-	atlassianWorklogsTools.registerTools(serverInstance);
-	serverLogger.debug('Registered Worklogs tools');
-
+	atlassianApiTools.registerTools(serverInstance);
 	serverLogger.info('All tools registered successfully');
 
 	if (mode === 'stdio') {

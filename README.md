@@ -6,17 +6,17 @@ Transform how you manage and track your work by connecting Claude, Cursor AI, an
 
 ## What You Can Do
 
-✅ **Ask AI about your projects**: *"What are the active issues in the DEV project?"*  
-✅ **Get issue insights**: *"Show me details about PROJ-123 including comments"*  
-✅ **Track project progress**: *"List all high priority issues assigned to me"*  
-✅ **Manage issue comments**: *"Add a comment to PROJ-456 about the test results"*  
-✅ **Search across projects**: *"Find all bugs in progress across my projects"*  
-✅ **Check workflow status**: *"What are the available statuses for the DEV project?"*  
+- **Ask AI about your projects**: "What are the active issues in the DEV project?"
+- **Get issue insights**: "Show me details about PROJ-123 including comments"
+- **Track project progress**: "List all high priority issues assigned to me"
+- **Manage issue comments**: "Add a comment to PROJ-456 about the test results"
+- **Search across projects**: "Find all bugs in progress across my projects"
+- **Create and update issues**: "Create a new bug in the MOBILE project"
 
 ## Perfect For
 
 - **Developers** who need quick access to issue details and development context
-- **Project Managers** tracking progress, priorities, and team assignments  
+- **Project Managers** tracking progress, priorities, and team assignments
 - **Scrum Masters** managing sprints and workflow states
 - **Team Leads** monitoring project health and issue resolution
 - **QA Engineers** tracking bugs and testing status
@@ -43,13 +43,13 @@ export ATLASSIAN_USER_EMAIL="your.email@company.com"
 export ATLASSIAN_API_TOKEN="your_api_token"
 
 # List your Jira projects
-npx -y @aashari/mcp-server-atlassian-jira ls-projects
+npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/project/search"
 
 # Get details about a specific project
-npx -y @aashari/mcp-server-atlassian-jira get-project --project-key-or-id DEV
+npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/project/DEV"
 
-# Search for issues
-npx -y @aashari/mcp-server-atlassian-jira ls-issues --project-key-or-id DEV
+# Get an issue with JMESPath filtering
+npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/issue/PROJ-123" --jq "{key: key, summary: fields.summary, status: fields.status.name}"
 ```
 
 ## Connect to AI Assistants
@@ -74,7 +74,7 @@ Add this to your Claude configuration file (`~/.claude/claude_desktop_config.jso
 }
 ```
 
-Restart Claude Desktop, and you'll see "🔗 jira" in the status bar.
+Restart Claude Desktop, and you'll see the jira server in the status bar.
 
 ### For Other AI Assistants
 
@@ -104,17 +104,71 @@ Create `~/.mcp/configs.json` for system-wide configuration:
 
 **Alternative config keys:** The system also accepts `"atlassian-jira"`, `"@aashari/mcp-server-atlassian-jira"`, or `"mcp-server-atlassian-jira"` instead of `"jira"`.
 
+## Available Tools
+
+This MCP server provides 5 generic tools that can access any Jira API endpoint:
+
+| Tool | Description |
+|------|-------------|
+| `jira_get` | GET any Jira API endpoint (read data) |
+| `jira_post` | POST to any endpoint (create resources) |
+| `jira_put` | PUT to any endpoint (replace resources) |
+| `jira_patch` | PATCH any endpoint (partial updates) |
+| `jira_delete` | DELETE any endpoint (remove resources) |
+
+### Common API Paths
+
+**Projects:**
+- `/rest/api/3/project/search` - List all projects
+- `/rest/api/3/project/{projectKeyOrId}` - Get project details
+
+**Issues:**
+- `/rest/api/3/search/jql` - Search issues with JQL (use `jql` query param)
+- `/rest/api/3/issue/{issueIdOrKey}` - Get issue details
+- `/rest/api/3/issue` - Create issue (POST)
+- `/rest/api/3/issue/{issueIdOrKey}/transitions` - Get/perform transitions
+
+**Comments:**
+- `/rest/api/3/issue/{issueIdOrKey}/comment` - List/add comments
+- `/rest/api/3/issue/{issueIdOrKey}/comment/{commentId}` - Get/update/delete comment
+
+**Worklogs:**
+- `/rest/api/3/issue/{issueIdOrKey}/worklog` - List/add worklogs
+- `/rest/api/3/issue/{issueIdOrKey}/worklog/{worklogId}` - Get/update/delete worklog
+
+**Users & Statuses:**
+- `/rest/api/3/myself` - Get current user
+- `/rest/api/3/user/search` - Search users (use `query` param)
+- `/rest/api/3/status` - List all statuses
+- `/rest/api/3/issuetype` - List issue types
+- `/rest/api/3/priority` - List priorities
+
+### JMESPath Filtering
+
+All tools support optional JMESPath (`jq`) filtering to extract specific data:
+
+```bash
+# Get just project names and keys
+npx -y @aashari/mcp-server-atlassian-jira get \
+  --path "/rest/api/3/project/search" \
+  --jq "values[].{key: key, name: name}"
+
+# Get issue key and summary
+npx -y @aashari/mcp-server-atlassian-jira get \
+  --path "/rest/api/3/issue/PROJ-123" \
+  --jq "{key: key, summary: fields.summary, status: fields.status.name}"
+```
+
 ## Real-World Examples
 
-### 📋 Explore Your Projects
+### Explore Your Projects
 
 Ask your AI assistant:
 - *"List all projects I have access to"*
-- *"Show me details about the DEV project"*  
+- *"Show me details about the DEV project"*
 - *"What projects contain the word 'Platform'?"*
-- *"Get project information for PROJ-123"*
 
-### 🔍 Search and Track Issues
+### Search and Track Issues
 
 Ask your AI assistant:
 - *"Find all high priority issues in the DEV project"*
@@ -122,28 +176,51 @@ Ask your AI assistant:
 - *"Search for bugs reported in the last week"*
 - *"List all open issues for the mobile team"*
 
-### 📝 Manage Issue Details
+### Manage Issue Details
 
 Ask your AI assistant:
 - *"Get full details about issue PROJ-456 including comments"*
-- *"Show me the development information for PROJ-789"*
 - *"What's the current status and assignee of PROJ-123?"*
 - *"Display all comments on the authentication bug"*
 
-### 💬 Issue Communication
+### Issue Communication
 
 Ask your AI assistant:
 - *"Add a comment to PROJ-456: 'Code review completed, ready for testing'"*
 - *"Comment on the login issue that it's been deployed to staging"*
-- *"Add testing results to issue PROJ-789"*
 
-### 🔄 Workflow Management
+## CLI Commands
 
-Ask your AI assistant:
-- *"What are the available statuses in the DEV project?"*
-- *"Show me all possible workflow states"*
-- *"What status options are available for project MOBILE?"*
-- *"List the workflow states for issue transitions"*
+The CLI mirrors the MCP tools for direct terminal access:
+
+```bash
+# GET request
+npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/project/search"
+
+# GET with query parameters
+npx -y @aashari/mcp-server-atlassian-jira get \
+  --path "/rest/api/3/search/jql" \
+  --query-params '{"jql": "project=DEV AND status=\"In Progress\"", "maxResults": "10"}'
+
+# POST request (create an issue)
+npx -y @aashari/mcp-server-atlassian-jira post \
+  --path "/rest/api/3/issue" \
+  --body '{"fields": {"project": {"key": "DEV"}, "summary": "New issue title", "issuetype": {"name": "Task"}}}'
+
+# POST request (add a comment)
+npx -y @aashari/mcp-server-atlassian-jira post \
+  --path "/rest/api/3/issue/PROJ-123/comment" \
+  --body '{"body": {"type": "doc", "version": 1, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "My comment"}]}]}}'
+
+# PUT request (update issue - full replacement)
+npx -y @aashari/mcp-server-atlassian-jira put \
+  --path "/rest/api/3/issue/PROJ-123" \
+  --body '{"fields": {"summary": "Updated title"}}'
+
+# DELETE request
+npx -y @aashari/mcp-server-atlassian-jira delete \
+  --path "/rest/api/3/issue/PROJ-123/comment/12345"
+```
 
 ## Troubleshooting
 
@@ -159,17 +236,15 @@ Ask your AI assistant:
 
 3. **Test your credentials**:
    ```bash
-   # Test your credentials work
-   npx -y @aashari/mcp-server-atlassian-jira ls-projects
+   npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/myself"
    ```
 
-### "Project not found" or "Issue not found"
+### "Resource not found" or "404"
 
-1. **Check project key spelling**:
-   ```bash
-   # List your projects to see the correct keys
-   npx -y @aashari/mcp-server-atlassian-jira ls-projects
-   ```
+1. **Check the API path**:
+   - Paths are case-sensitive
+   - Use project keys (e.g., `DEV`) not project names
+   - Issue keys include the project prefix (e.g., `DEV-123`)
 
 2. **Verify access permissions**:
    - Make sure you have access to the project in your browser
@@ -181,17 +256,15 @@ Ask your AI assistant:
    - Use project keys instead of project names
    - Try broader search criteria
 
-2. **Check issue permissions**:
-   - You can only access issues you have permission to view
-   - Ask your admin if you should have access to specific projects
+2. **Check JQL syntax**:
+   - Validate your JQL in Jira's advanced search first
 
 ### Claude Desktop Integration Issues
 
 1. **Restart Claude Desktop** after updating the config file
-2. **Check the status bar** for the "🔗 jira" indicator
-3. **Verify config file location**:
+2. **Verify config file location**:
    - macOS: `~/.claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ### Getting Help
 
@@ -215,13 +288,13 @@ Currently, this tool only supports **Jira Cloud**. Jira Server/Data Center suppo
 ### How do I find my site name?
 
 Your site name is the first part of your Jira URL:
-- URL: `https://mycompany.atlassian.net` → Site name: `mycompany`
-- URL: `https://acme-corp.atlassian.net` → Site name: `acme-corp`
+- URL: `https://mycompany.atlassian.net` -> Site name: `mycompany`
+- URL: `https://acme-corp.atlassian.net` -> Site name: `acme-corp`
 
 ### What AI assistants does this work with?
 
 Any AI assistant that supports the Model Context Protocol (MCP):
-- Claude Desktop (most popular)
+- Claude Desktop
 - Cursor AI
 - Continue.dev
 - Many others
@@ -236,7 +309,35 @@ Yes! This tool:
 
 ### Can I search across multiple projects?
 
-Yes! When you don't specify a project, searches will look across all projects you have access to. You can also use JQL queries for advanced cross-project searches.
+Yes! Use JQL queries for cross-project searches. For example:
+```bash
+npx -y @aashari/mcp-server-atlassian-jira get \
+  --path "/rest/api/3/search/jql" \
+  --query-params '{"jql": "assignee=currentUser() AND status=\"In Progress\""}'
+```
+
+## Migration from v2.x
+
+Version 3.0 replaces 8+ specific tools with 5 generic HTTP method tools. If you're upgrading from v2.x:
+
+**Before (v2.x):**
+```
+jira_ls_projects, jira_get_project, jira_ls_issues, jira_get_issue,
+jira_create_issue, jira_ls_comments, jira_add_comment, jira_ls_statuses, ...
+```
+
+**After (v3.0):**
+```
+jira_get, jira_post, jira_put, jira_patch, jira_delete
+```
+
+**Migration examples:**
+- `jira_ls_projects` -> `jira_get` with path `/rest/api/3/project/search`
+- `jira_get_project` -> `jira_get` with path `/rest/api/3/project/{key}`
+- `jira_get_issue` -> `jira_get` with path `/rest/api/3/issue/{key}`
+- `jira_create_issue` -> `jira_post` with path `/rest/api/3/issue`
+- `jira_add_comment` -> `jira_post` with path `/rest/api/3/issue/{key}/comment`
+- `jira_ls_statuses` -> `jira_get` with path `/rest/api/3/status`
 
 ## Support
 
@@ -249,4 +350,4 @@ Need help? Here's how to get assistance:
 
 ---
 
-*Made with ❤️ for teams who want to bring AI into their project management workflow.*
+*Made with care for teams who want to bring AI into their project management workflow.*
