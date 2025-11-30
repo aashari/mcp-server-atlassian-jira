@@ -68,6 +68,7 @@ function registerReadCommand(
 		path: string;
 		queryParams?: Record<string, string>;
 		jq?: string;
+		outputFormat?: 'toon' | 'json';
 	}) => Promise<{ content: string }>,
 ): void {
 	program
@@ -84,6 +85,11 @@ function registerReadCommand(
 		.option(
 			'--jq <expression>',
 			'JMESPath expression to filter/transform the response.',
+		)
+		.option(
+			'--output-format <format>',
+			'Output format: "toon" (default, token-efficient) or "json".',
+			'toon',
 		)
 		.action(async (options) => {
 			const actionLogger = cliLogger.forMethod(name);
@@ -103,6 +109,7 @@ function registerReadCommand(
 					path: options.path,
 					queryParams,
 					jq: options.jq,
+					outputFormat: options.outputFormat as 'toon' | 'json',
 				});
 
 				console.log(result.content);
@@ -128,6 +135,7 @@ function registerWriteCommand(
 		body: Record<string, unknown>;
 		queryParams?: Record<string, string>;
 		jq?: string;
+		outputFormat?: 'toon' | 'json';
 	}) => Promise<{ content: string }>,
 ): void {
 	program
@@ -142,6 +150,11 @@ function registerWriteCommand(
 		.option(
 			'--jq <expression>',
 			'JMESPath expression to filter/transform the response.',
+		)
+		.option(
+			'--output-format <format>',
+			'Output format: "toon" (default, token-efficient) or "json".',
+			'toon',
 		)
 		.action(async (options) => {
 			const actionLogger = cliLogger.forMethod(name);
@@ -168,6 +181,7 @@ function registerWriteCommand(
 					body,
 					queryParams,
 					jq: options.jq,
+					outputFormat: options.outputFormat as 'toon' | 'json',
 				});
 
 				console.log(result.content);
@@ -193,7 +207,7 @@ function register(program: Command): void {
 	registerReadCommand(
 		program,
 		'get',
-		'GET any Jira endpoint. Returns JSON, optionally filtered with JMESPath.',
+		'GET any Jira endpoint. Returns TOON by default (or JSON with --output-format json), optionally filtered with JMESPath.',
 		handleGet,
 	);
 
@@ -201,7 +215,7 @@ function register(program: Command): void {
 	registerWriteCommand(
 		program,
 		'post',
-		'POST to any Jira endpoint. Returns JSON, optionally filtered with JMESPath.',
+		'POST to any Jira endpoint. Returns TOON by default (or JSON with --output-format json), optionally filtered with JMESPath.',
 		handlePost,
 	);
 
@@ -209,7 +223,7 @@ function register(program: Command): void {
 	registerWriteCommand(
 		program,
 		'put',
-		'PUT to any Jira endpoint. Returns JSON, optionally filtered with JMESPath.',
+		'PUT to any Jira endpoint. Returns TOON by default (or JSON with --output-format json), optionally filtered with JMESPath.',
 		handlePut,
 	);
 
@@ -217,7 +231,7 @@ function register(program: Command): void {
 	registerWriteCommand(
 		program,
 		'patch',
-		'PATCH any Jira endpoint. Returns JSON, optionally filtered with JMESPath.',
+		'PATCH any Jira endpoint. Returns TOON by default (or JSON with --output-format json), optionally filtered with JMESPath.',
 		handlePatch,
 	);
 
@@ -225,7 +239,7 @@ function register(program: Command): void {
 	registerReadCommand(
 		program,
 		'delete',
-		'DELETE any Jira endpoint. Returns JSON (if any), optionally filtered with JMESPath.',
+		'DELETE any Jira endpoint. Returns TOON by default (or JSON with --output-format json, if any), optionally filtered with JMESPath.',
 		handleDelete,
 	);
 
