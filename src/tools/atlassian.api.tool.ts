@@ -125,7 +125,18 @@ function registerTools(server: McpServer) {
 	// Register the GET tool
 	server.tool(
 		'jira_get',
-		`Read any Jira data. Returns JSON, optionally filtered with JMESPath (\`jq\` param).
+		`Read any Jira data. Returns TOON format by default (30-60% fewer tokens than JSON).
+
+**IMPORTANT - Cost Optimization:**
+- ALWAYS use \`jq\` param to filter response fields. Unfiltered responses are very expensive!
+- Use \`maxResults\` query param to restrict result count (e.g., \`maxResults: "5"\`)
+- If unsure about available fields, first fetch ONE item with \`maxResults: "1"\` and NO jq filter to explore the schema, then use jq in subsequent calls
+
+**Schema Discovery Pattern:**
+1. First call: \`path: "/rest/api/3/search", queryParams: {"maxResults": "1", "jql": "project=PROJ"}\` (no jq) - explore available fields
+2. Then use: \`jq: "issues[*].{key: key, summary: fields.summary, status: fields.status.name}"\` - extract only what you need
+
+**Output format:** TOON (default, token-efficient) or JSON (\`outputFormat: "json"\`)
 
 **Common paths:**
 - \`/rest/api/3/project\` - list all projects
@@ -140,7 +151,7 @@ function registerTools(server: McpServer) {
 - \`/rest/api/3/issuetype\` - list issue types
 - \`/rest/api/3/priority\` - list priorities
 
-**Query params:** \`maxResults\` (page size), \`startAt\` (offset), \`jql\` (JQL query), \`fields\` (field selection), \`expand\` (include additional data)
+**JQ examples:** \`issues[*].key\`, \`issues[0]\`, \`issues[*].{key: key, summary: fields.summary}\`
 
 **Example JQL queries:** \`project=PROJ\`, \`assignee=currentUser()\`, \`status="In Progress"\`, \`created >= -7d\`
 
@@ -152,7 +163,13 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 	// Register the POST tool
 	server.tool(
 		'jira_post',
-		`Create Jira resources. Returns JSON, optionally filtered with JMESPath (\`jq\` param).
+		`Create Jira resources. Returns TOON format by default (token-efficient).
+
+**IMPORTANT - Cost Optimization:**
+- Use \`jq\` param to extract only needed fields from response (e.g., \`jq: "{key: key, id: id}"\`)
+- Unfiltered responses include all metadata and are expensive!
+
+**Output format:** TOON (default) or JSON (\`outputFormat: "json"\`)
 
 **Common operations:**
 
@@ -179,7 +196,11 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 	// Register the PUT tool
 	server.tool(
 		'jira_put',
-		`Replace Jira resources (full update). Returns JSON, optionally filtered with JMESPath (\`jq\` param).
+		`Replace Jira resources (full update). Returns TOON format by default.
+
+**IMPORTANT - Cost Optimization:** Use \`jq\` param to extract only needed fields from response
+
+**Output format:** TOON (default) or JSON (\`outputFormat: "json"\`)
 
 **Common operations:**
 
@@ -202,7 +223,11 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 	// Register the PATCH tool
 	server.tool(
 		'jira_patch',
-		`Partially update Jira resources. Returns JSON, optionally filtered with JMESPath (\`jq\` param).
+		`Partially update Jira resources. Returns TOON format by default.
+
+**IMPORTANT - Cost Optimization:** Use \`jq\` param to filter response fields.
+
+**Output format:** TOON (default) or JSON (\`outputFormat: "json"\`)
 
 **Common operations:**
 
@@ -225,7 +250,9 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 	// Register the DELETE tool
 	server.tool(
 		'jira_delete',
-		`Delete Jira resources. Returns JSON (if any), optionally filtered with JMESPath (\`jq\` param).
+		`Delete Jira resources. Returns TOON format by default.
+
+**Output format:** TOON (default) or JSON (\`outputFormat: "json"\`)
 
 **Common operations:**
 
