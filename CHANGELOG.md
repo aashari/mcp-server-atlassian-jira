@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/aashari/mcp-server-atlassian-jira/compare/v3.0.0...v3.1.0) (2025-11-30)
+
+
+### Features
+
+* add TOON output format for token-efficient LLM responses ([#155](https://github.com/aashari/mcp-server-atlassian-jira/issues/155)) ([50de5b9](https://github.com/aashari/mcp-server-atlassian-jira/commit/50de5b921a2f896de3834e70ac8f6e965d2b6a97))
+
 # [3.0.0](https://github.com/aashari/mcp-server-atlassian-jira/compare/v2.1.1...v3.0.0) (2025-11-28)
 
 
