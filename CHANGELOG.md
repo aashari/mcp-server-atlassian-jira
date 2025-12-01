@@ -1,3 +1,10 @@
+## [3.2.1](https://github.com/aashari/mcp-server-atlassian-jira/compare/v3.2.0...v3.2.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* **deps:** regenerate package-lock.json for CI compatibility ([c4559c9](https://github.com/aashari/mcp-server-atlassian-jira/commit/c4559c977be8a43261f5f6b2878cb8c0ec13e281))
+
 # [3.2.0](https://github.com/aashari/mcp-server-atlassian-jira/compare/v3.1.0...v3.2.0) (2025-12-01)
 
 
