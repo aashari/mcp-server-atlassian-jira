@@ -112,20 +112,8 @@ const put = createWriteHandler('PUT', handlePut);
 const patch = createWriteHandler('PATCH', handlePatch);
 const del = createReadHandler('DELETE', handleDelete);
 
-/**
- * Register generic Jira API tools with the MCP server.
- */
-function registerTools(server: McpServer) {
-	const registerLogger = Logger.forContext(
-		'tools/atlassian.api.tool.ts',
-		'registerTools',
-	);
-	registerLogger.debug('Registering API tools...');
-
-	// Register the GET tool
-	server.tool(
-		'jira_get',
-		`Read any Jira data. Returns TOON format by default (30-60% fewer tokens than JSON).
+// Tool descriptions
+const JIRA_GET_DESCRIPTION = `Read any Jira data. Returns TOON format by default (30-60% fewer tokens than JSON).
 
 **IMPORTANT - Cost Optimization:**
 - ALWAYS use \`jq\` param to filter response fields. Unfiltered responses are very expensive!
@@ -155,15 +143,9 @@ function registerTools(server: McpServer) {
 
 **Example JQL queries:** \`project=PROJ\`, \`assignee=currentUser()\`, \`status="In Progress"\`, \`created >= -7d\`
 
-API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
-		GetApiToolArgs.shape,
-		get,
-	);
+API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`;
 
-	// Register the POST tool
-	server.tool(
-		'jira_post',
-		`Create Jira resources. Returns TOON format by default (token-efficient).
+const JIRA_POST_DESCRIPTION = `Create Jira resources. Returns TOON format by default (token-efficient).
 
 **IMPORTANT - Cost Optimization:**
 - Use \`jq\` param to extract only needed fields from response (e.g., \`jq: "{key: key, id: id}"\`)
@@ -188,15 +170,9 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 5. **Add attachment:** \`/rest/api/3/issue/{issueIdOrKey}/attachments\`
    Note: Requires multipart form data (complex - use Jira UI for attachments)
 
-API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
-		RequestWithBodyArgs.shape,
-		post,
-	);
+API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`;
 
-	// Register the PUT tool
-	server.tool(
-		'jira_put',
-		`Replace Jira resources (full update). Returns TOON format by default.
+const JIRA_PUT_DESCRIPTION = `Replace Jira resources (full update). Returns TOON format by default.
 
 **IMPORTANT - Cost Optimization:** Use \`jq\` param to extract only needed fields from response
 
@@ -215,15 +191,9 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 
 Note: PUT replaces the entire resource. For partial updates, prefer PATCH.
 
-API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
-		RequestWithBodyArgs.shape,
-		put,
-	);
+API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`;
 
-	// Register the PATCH tool
-	server.tool(
-		'jira_patch',
-		`Partially update Jira resources. Returns TOON format by default.
+const JIRA_PATCH_DESCRIPTION = `Partially update Jira resources. Returns TOON format by default.
 
 **IMPORTANT - Cost Optimization:** Use \`jq\` param to filter response fields.
 
@@ -242,15 +212,9 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 
 Note: PATCH only updates the fields you specify, leaving others unchanged.
 
-API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
-		RequestWithBodyArgs.shape,
-		patch,
-	);
+API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`;
 
-	// Register the DELETE tool
-	server.tool(
-		'jira_delete',
-		`Delete Jira resources. Returns TOON format by default.
+const JIRA_DELETE_DESCRIPTION = `Delete Jira resources. Returns TOON format by default.
 
 **Output format:** TOON (default) or JSON (\`outputFormat: "json"\`)
 
@@ -270,8 +234,71 @@ API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
 
 Note: Most DELETE endpoints return 204 No Content on success.
 
-API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`,
-		DeleteApiToolArgs.shape,
+API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`;
+
+/**
+ * Register generic Jira API tools with the MCP server.
+ * Uses the modern registerTool API (SDK v1.22.0+) instead of deprecated tool() method.
+ */
+function registerTools(server: McpServer) {
+	const registerLogger = Logger.forContext(
+		'tools/atlassian.api.tool.ts',
+		'registerTools',
+	);
+	registerLogger.debug('Registering API tools...');
+
+	// Register the GET tool using modern registerTool API
+	server.registerTool(
+		'jira_get',
+		{
+			title: 'Jira GET Request',
+			description: JIRA_GET_DESCRIPTION,
+			inputSchema: GetApiToolArgs,
+		},
+		get,
+	);
+
+	// Register the POST tool using modern registerTool API
+	server.registerTool(
+		'jira_post',
+		{
+			title: 'Jira POST Request',
+			description: JIRA_POST_DESCRIPTION,
+			inputSchema: RequestWithBodyArgs,
+		},
+		post,
+	);
+
+	// Register the PUT tool using modern registerTool API
+	server.registerTool(
+		'jira_put',
+		{
+			title: 'Jira PUT Request',
+			description: JIRA_PUT_DESCRIPTION,
+			inputSchema: RequestWithBodyArgs,
+		},
+		put,
+	);
+
+	// Register the PATCH tool using modern registerTool API
+	server.registerTool(
+		'jira_patch',
+		{
+			title: 'Jira PATCH Request',
+			description: JIRA_PATCH_DESCRIPTION,
+			inputSchema: RequestWithBodyArgs,
+		},
+		patch,
+	);
+
+	// Register the DELETE tool using modern registerTool API
+	server.registerTool(
+		'jira_delete',
+		{
+			title: 'Jira DELETE Request',
+			description: JIRA_DELETE_DESCRIPTION,
+			inputSchema: DeleteApiToolArgs,
+		},
 		del,
 	);
 
