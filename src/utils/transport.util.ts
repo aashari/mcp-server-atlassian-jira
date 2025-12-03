@@ -7,6 +7,7 @@ import {
 	createNotFoundError,
 	McpError,
 } from './error.util.js';
+import { saveRawResponse } from './response.util.js';
 
 // Create a contextualized logger for this file
 const transportLogger = Logger.forContext('utils/transport.util.ts');
@@ -30,6 +31,14 @@ export interface RequestOptions {
 	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 	headers?: Record<string, string>;
 	body?: unknown;
+}
+
+/**
+ * Transport response wrapper that includes the data and the path to the raw response file
+ */
+export interface TransportResponse<T> {
+	data: T;
+	rawResponsePath: string | null;
 }
 
 /**
@@ -66,13 +75,13 @@ export function getAtlassianCredentials(): AtlassianCredentials | null {
  * @param credentials Atlassian API credentials
  * @param path API endpoint path (without base URL)
  * @param options Request options
- * @returns Response data
+ * @returns Transport response with data and raw response path
  */
 export async function fetchAtlassian<T>(
 	credentials: AtlassianCredentials,
 	path: string,
 	options: RequestOptions = {},
-): Promise<T> {
+): Promise<TransportResponse<T>> {
 	const methodLogger = Logger.forContext(
 		'utils/transport.util.ts',
 		'fetchAtlassian',
@@ -104,8 +113,13 @@ export async function fetchAtlassian<T>(
 
 	methodLogger.debug(`Calling Atlassian API: ${url}`);
 
+	// Track API call performance
+	const startTime = performance.now();
+
 	try {
 		const response = await fetch(url, requestOptions);
+		const endTime = performance.now();
+		const requestDuration = (endTime - startTime).toFixed(2);
 
 		// Log the raw response status and headers
 		methodLogger.debug(
@@ -270,26 +284,40 @@ export async function fetchAtlassian<T>(
 		// Handle 204 No Content responses (common for DELETE operations)
 		if (response.status === 204) {
 			methodLogger.debug('Received 204 No Content response');
-			return {} as T;
+			return { data: {} as T, rawResponsePath: null };
 		}
 
 		// Handle empty responses (some endpoints return 200/201 with no body)
 		const responseText = await response.text();
 		if (!responseText || responseText.trim() === '') {
 			methodLogger.debug('Received empty response body');
-			return {} as T;
+			return { data: {} as T, rawResponsePath: null };
 		}
 
 		// For JSON responses, parse the text we already read
 		try {
 			const responseJson = JSON.parse(responseText);
 			methodLogger.debug(`Response body:`, responseJson);
-			return responseJson as T;
+
+			// Save raw response to file and capture the path
+			const rawResponsePath = saveRawResponse(
+				url,
+				requestOptions.method || 'GET',
+				options.body,
+				responseJson,
+				response.status,
+				parseFloat(requestDuration),
+			);
+
+			return { data: responseJson as T, rawResponsePath };
 		} catch {
 			methodLogger.debug(
 				`Could not parse response as JSON, returning raw content`,
 			);
-			return responseText as unknown as T;
+			return {
+				data: responseText as unknown as T,
+				rawResponsePath: null,
+			};
 		}
 	} catch (error) {
 		methodLogger.error(`Request failed`, error);

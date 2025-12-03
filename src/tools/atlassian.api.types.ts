@@ -22,7 +22,7 @@ const BaseApiToolArgs = {
 	 * Examples:
 	 * - "/rest/api/3/project" - list projects
 	 * - "/rest/api/3/project/{projectIdOrKey}" - get project
-	 * - "/rest/api/3/search" - search issues with JQL
+	 * - "/rest/api/3/search/jql" - search issues with JQL (NOTE: /rest/api/3/search is deprecated)
 	 * - "/rest/api/3/issue/{issueIdOrKey}" - get issue
 	 * - "/rest/api/3/issue" - create issue
 	 */
@@ -30,7 +30,7 @@ const BaseApiToolArgs = {
 		.string()
 		.min(1, 'Path is required')
 		.describe(
-			'The Jira API endpoint path (without base URL). Must start with "/". Examples: "/rest/api/3/project", "/rest/api/3/search", "/rest/api/3/issue/{issueIdOrKey}"',
+			'The Jira API endpoint path (without base URL). Must start with "/". Examples: "/rest/api/3/project", "/rest/api/3/search/jql", "/rest/api/3/issue/{issueIdOrKey}"',
 		),
 
 	/**

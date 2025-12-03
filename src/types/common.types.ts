@@ -50,4 +50,10 @@ export interface ControllerResponse {
 	 * to be presented to the user.
 	 */
 	content: string;
+
+	/**
+	 * Optional path to the raw API response file.
+	 * When the response is truncated, this path allows AI to access the full data.
+	 */
+	rawResponsePath?: string | null;
 }

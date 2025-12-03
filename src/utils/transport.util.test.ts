@@ -107,15 +107,15 @@ describe('Transport Utility', () => {
 			});
 
 			// Verify the response structure from real API
-			expect(result).toHaveProperty('values');
-			expect(Array.isArray(result.values)).toBe(true);
-			expect(result).toHaveProperty('startAt');
-			expect(result).toHaveProperty('maxResults');
-			expect(result).toHaveProperty('total');
+			expect(result.data).toHaveProperty('values');
+			expect(Array.isArray(result.data.values)).toBe(true);
+			expect(result.data).toHaveProperty('startAt');
+			expect(result.data).toHaveProperty('maxResults');
+			expect(result.data).toHaveProperty('total');
 
 			// If projects are returned, verify their structure
-			if (result.values.length > 0) {
-				const project = result.values[0];
+			if (result.data.values.length > 0) {
+				const project = result.data.values[0];
 				expect(project).toHaveProperty('id');
 				expect(project).toHaveProperty('key');
 				expect(project).toHaveProperty('name');
@@ -159,11 +159,11 @@ describe('Transport Utility', () => {
 			});
 
 			// Verify the response structure from real API
-			expect(result).toHaveProperty('values');
-			expect(Array.isArray(result.values)).toBe(true);
-			expect(result).toHaveProperty('startAt');
-			expect(result).toHaveProperty('maxResults');
-			expect(result).toHaveProperty('total');
+			expect(result.data).toHaveProperty('values');
+			expect(Array.isArray(result.data.values)).toBe(true);
+			expect(result.data).toHaveProperty('startAt');
+			expect(result.data).toHaveProperty('maxResults');
+			expect(result.data).toHaveProperty('total');
 		}, 15000); // Increased timeout for real API call
 
 		it('should support custom request options', async () => {
@@ -191,11 +191,11 @@ describe('Transport Utility', () => {
 			>(credentials, '/rest/api/3/project/search?maxResults=1', options);
 
 			// Verify the response structure and pagination
-			expect(result).toHaveProperty('values');
-			expect(Array.isArray(result.values)).toBe(true);
-			expect(result).toHaveProperty('startAt');
-			expect(result).toHaveProperty('maxResults', 1); // Should respect maxResults=1
-			expect(result.values.length).toBeLessThanOrEqual(1);
+			expect(result.data).toHaveProperty('values');
+			expect(Array.isArray(result.data.values)).toBe(true);
+			expect(result.data).toHaveProperty('startAt');
+			expect(result.data).toHaveProperty('maxResults', 1); // Should respect maxResults=1
+			expect(result.data.values.length).toBeLessThanOrEqual(1);
 		}, 15000); // Increased timeout for real API call
 	});
 });

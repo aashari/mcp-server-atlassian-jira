@@ -1,7 +1,4 @@
-import {
-	fetchAtlassian,
-	getAtlassianCredentials,
-} from '../utils/transport.util.js';
+import atlassianApiService from '../services/vendor.atlassian.api.service.js';
 import { Logger } from '../utils/logger.util.js';
 import { handleControllerError } from '../utils/error-handler.util.js';
 import { ControllerResponse } from '../types/common.types.js';
@@ -10,15 +7,21 @@ import {
 	RequestWithBodyArgsType,
 } from '../tools/atlassian.api.types.js';
 import { applyJqFilter, toOutputString } from '../utils/jq.util.js';
-import { createAuthMissingError } from '../utils/error.util.js';
+
+/**
+ * @namespace AtlassianApiController
+ * @description Controller for handling generic Jira API requests.
+ *              Orchestrates calls to the Atlassian API service and handles
+ *              response formatting (JQ filtering, TOON/JSON output).
+ *
+ * Architecture:
+ * - Tool → Controller (this file) → Service → Transport
+ * - Controller handles: JQ filtering, output formatting, error context
+ * - Service handles: Credentials, path normalization, API calls
+ */
 
 // Logger instance for this module
 const logger = Logger.forContext('controllers/atlassian.api.controller.ts');
-
-/**
- * Supported HTTP methods for API requests
- */
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /**
  * Output format type
@@ -43,44 +46,14 @@ interface RequestWithBodyOptions extends BaseRequestOptions {
 }
 
 /**
- * Normalizes the API path by ensuring it starts with /
- * @param path - The raw path provided by the user
- * @returns Normalized path
- */
-function normalizePath(path: string): string {
-	let normalizedPath = path;
-	if (!normalizedPath.startsWith('/')) {
-		normalizedPath = '/' + normalizedPath;
-	}
-	return normalizedPath;
-}
-
-/**
- * Appends query parameters to a path
- * @param path - The base path
- * @param queryParams - Optional query parameters
- * @returns Path with query string appended
- */
-function appendQueryParams(
-	path: string,
-	queryParams?: Record<string, string>,
-): string {
-	if (!queryParams || Object.keys(queryParams).length === 0) {
-		return path;
-	}
-	const queryString = new URLSearchParams(queryParams).toString();
-	return path + (path.includes('?') ? '&' : '?') + queryString;
-}
-
-/**
  * Shared handler for all HTTP methods
  *
  * @param method - HTTP method (GET, POST, PUT, PATCH, DELETE)
  * @param options - Request options including path, queryParams, body (for non-GET), and jq filter
- * @returns Promise with raw JSON response (optionally filtered)
+ * @returns Promise with formatted response content
  */
 async function handleRequest(
-	method: HttpMethod,
+	method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
 	options: RequestWithBodyOptions,
 ): Promise<ControllerResponse> {
 	const methodLogger = logger.forMethod(`handle${method}`);
@@ -91,39 +64,20 @@ async function handleRequest(
 			...(options.body && { bodyKeys: Object.keys(options.body) }),
 		});
 
-		// Get credentials
-		const credentials = getAtlassianCredentials();
-		if (!credentials) {
-			throw createAuthMissingError();
-		}
-
-		// Normalize path and append query params
-		let path = normalizePath(options.path);
-		path = appendQueryParams(path, options.queryParams);
-
-		methodLogger.debug(`${method}ing: ${path}`);
-
-		const fetchOptions: {
-			method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-			body?: unknown;
-		} = {
-			method,
-		};
-
-		// Add body for methods that support it
-		if (options.body && ['POST', 'PUT', 'PATCH'].includes(method)) {
-			fetchOptions.body = options.body;
-		}
-
-		const response = await fetchAtlassian<unknown>(
-			credentials,
-			path,
-			fetchOptions,
+		// Call the service layer (returns TransportResponse with data and rawResponsePath)
+		const response = await atlassianApiService.request<unknown>(
+			options.path,
+			{
+				method,
+				queryParams: options.queryParams,
+				body: options.body,
+			},
 		);
-		methodLogger.debug('Successfully received response');
+
+		methodLogger.debug('Successfully received response from service');
 
 		// Apply JQ filter if provided, otherwise return raw data
-		const result = applyJqFilter(response, options.jq);
+		const result = applyJqFilter(response.data, options.jq);
 
 		// Convert to output format (TOON by default, JSON if requested)
 		const useToon = options.outputFormat !== 'json';
@@ -131,6 +85,7 @@ async function handleRequest(
 
 		return {
 			content,
+			rawResponsePath: response.rawResponsePath,
 		};
 	} catch (error) {
 		throw handleControllerError(error, {

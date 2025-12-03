@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Logger } from '../utils/logger.util.js';
 import { formatErrorForMcpTool } from '../utils/error.util.js';
+import { truncateForAI } from '../utils/formatter.util.js';
 import {
 	GetApiToolArgs,
 	type GetApiToolArgsType,
@@ -31,7 +32,9 @@ toolLogger.debug('Jira API tool initialized');
  */
 function createReadHandler(
 	methodName: string,
-	handler: (options: GetApiToolArgsType) => Promise<{ content: string }>,
+	handler: (
+		options: GetApiToolArgsType,
+	) => Promise<{ content: string; rawResponsePath?: string | null }>,
 ) {
 	return async (args: Record<string, unknown>) => {
 		const methodLogger = Logger.forContext(
@@ -51,7 +54,10 @@ function createReadHandler(
 				content: [
 					{
 						type: 'text' as const,
-						text: result.content,
+						text: truncateForAI(
+							result.content,
+							result.rawResponsePath,
+						),
 					},
 				],
 			};
@@ -71,7 +77,9 @@ function createReadHandler(
  */
 function createWriteHandler(
 	methodName: string,
-	handler: (options: RequestWithBodyArgsType) => Promise<{ content: string }>,
+	handler: (
+		options: RequestWithBodyArgsType,
+	) => Promise<{ content: string; rawResponsePath?: string | null }>,
 ) {
 	return async (args: Record<string, unknown>) => {
 		const methodLogger = Logger.forContext(
@@ -94,7 +102,10 @@ function createWriteHandler(
 				content: [
 					{
 						type: 'text' as const,
-						text: result.content,
+						text: truncateForAI(
+							result.content,
+							result.rawResponsePath,
+						),
 					},
 				],
 			};
@@ -121,7 +132,7 @@ const JIRA_GET_DESCRIPTION = `Read any Jira data. Returns TOON format by default
 - If unsure about available fields, first fetch ONE item with \`maxResults: "1"\` and NO jq filter to explore the schema, then use jq in subsequent calls
 
 **Schema Discovery Pattern:**
-1. First call: \`path: "/rest/api/3/search", queryParams: {"maxResults": "1", "jql": "project=PROJ"}\` (no jq) - explore available fields
+1. First call: \`path: "/rest/api/3/search/jql", queryParams: {"maxResults": "1", "jql": "project=PROJ"}\` (no jq) - explore available fields
 2. Then use: \`jq: "issues[*].{key: key, summary: fields.summary, status: fields.status.name}"\` - extract only what you need
 
 **Output format:** TOON (default, token-efficient) or JSON (\`outputFormat: "json"\`)
@@ -129,7 +140,7 @@ const JIRA_GET_DESCRIPTION = `Read any Jira data. Returns TOON format by default
 **Common paths:**
 - \`/rest/api/3/project\` - list all projects
 - \`/rest/api/3/project/{projectKeyOrId}\` - get project details
-- \`/rest/api/3/search\` - search issues with JQL (use \`jql\` query param)
+- \`/rest/api/3/search/jql\` - search issues with JQL (use \`jql\` query param). NOTE: \`/rest/api/3/search\` is deprecated!
 - \`/rest/api/3/issue/{issueIdOrKey}\` - get issue details
 - \`/rest/api/3/issue/{issueIdOrKey}/comment\` - list issue comments
 - \`/rest/api/3/issue/{issueIdOrKey}/worklog\` - list issue worklogs
