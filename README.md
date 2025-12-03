@@ -119,11 +119,12 @@ This MCP server provides 5 generic tools that can access any Jira API endpoint:
 ### Common API Paths
 
 **Projects:**
-- `/rest/api/3/project/search` - List all projects
+- `/rest/api/3/project/search` - List all projects (paginated, recommended)
+- `/rest/api/3/project` - List all projects (non-paginated, legacy)
 - `/rest/api/3/project/{projectKeyOrId}` - Get project details
 
 **Issues:**
-- `/rest/api/3/search/jql` - Search issues with JQL (use `jql` query param)
+- `/rest/api/3/search/jql` - Search issues with JQL (use `jql` query param). **IMPORTANT:** `/rest/api/3/search` is deprecated!
 - `/rest/api/3/issue/{issueIdOrKey}` - Get issue details
 - `/rest/api/3/issue` - Create issue (POST)
 - `/rest/api/3/issue/{issueIdOrKey}/transitions` - Get/perform transitions
@@ -143,6 +144,22 @@ This MCP server provides 5 generic tools that can access any Jira API endpoint:
 - `/rest/api/3/issuetype` - List issue types
 - `/rest/api/3/priority` - List priorities
 
+### TOON Output Format
+
+By default, all responses use **TOON (Token-Oriented Object Notation)** format, which reduces token usage by 30-60% compared to JSON. TOON uses tabular arrays and minimal syntax, making it ideal for AI consumption.
+
+**To use JSON instead:** Add `--output-format json` to CLI commands or set `outputFormat: "json"` in MCP tool calls.
+
+**Example TOON vs JSON:**
+```
+TOON: key|summary|status
+      PROJ-1|First issue|Open
+      PROJ-2|Second issue|Done
+
+JSON: [{"key":"PROJ-1","summary":"First issue","status":"Open"},
+       {"key":"PROJ-2","summary":"Second issue","status":"Done"}]
+```
+
 ### JMESPath Filtering
 
 All tools support optional JMESPath (`jq`) filtering to extract specific data:
@@ -158,6 +175,15 @@ npx -y @aashari/mcp-server-atlassian-jira get \
   --path "/rest/api/3/issue/PROJ-123" \
   --jq "{key: key, summary: fields.summary, status: fields.status.name}"
 ```
+
+### Response Truncation and Raw Logs
+
+For large API responses (>40k characters ≈ 10k tokens), responses are automatically truncated with guidance. The complete raw response is saved to `/tmp/mcp/mcp-server-atlassian-jira/<timestamp>-<random>.txt` for reference.
+
+**When truncated, you'll see:**
+- A truncation notice with the raw file path
+- Suggestions to refine your query with better filters
+- Percentage of data shown vs total size
 
 ## Real-World Examples
 
@@ -194,13 +220,19 @@ Ask your AI assistant:
 The CLI mirrors the MCP tools for direct terminal access:
 
 ```bash
-# GET request
+# GET request (returns TOON format by default)
 npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/project/search"
 
-# GET with query parameters
+# GET with query parameters and JSON output
 npx -y @aashari/mcp-server-atlassian-jira get \
   --path "/rest/api/3/search/jql" \
-  --query-params '{"jql": "project=DEV AND status=\"In Progress\"", "maxResults": "10"}'
+  --query-params '{"jql": "project=DEV AND status=\"In Progress\"", "maxResults": "10"}' \
+  --output-format json
+
+# GET with JMESPath filtering to extract specific fields
+npx -y @aashari/mcp-server-atlassian-jira get \
+  --path "/rest/api/3/issue/PROJ-123" \
+  --jq "{key: key, summary: fields.summary, status: fields.status.name}"
 
 # POST request (create an issue)
 npx -y @aashari/mcp-server-atlassian-jira post \
@@ -217,10 +249,20 @@ npx -y @aashari/mcp-server-atlassian-jira put \
   --path "/rest/api/3/issue/PROJ-123" \
   --body '{"fields": {"summary": "Updated title"}}'
 
+# PATCH request (partial update)
+npx -y @aashari/mcp-server-atlassian-jira patch \
+  --path "/rest/api/3/issue/PROJ-123" \
+  --body '{"fields": {"summary": "Updated title"}}'
+
 # DELETE request
 npx -y @aashari/mcp-server-atlassian-jira delete \
   --path "/rest/api/3/issue/PROJ-123/comment/12345"
 ```
+
+**Note:** All CLI commands support:
+- `--output-format` - Choose between `toon` (default, token-efficient) or `json`
+- `--jq` - Filter response with JMESPath expressions
+- `--query-params` - Pass query parameters as JSON string
 
 ## Troubleshooting
 
@@ -316,6 +358,59 @@ npx -y @aashari/mcp-server-atlassian-jira get \
   --query-params '{"jql": "assignee=currentUser() AND status=\"In Progress\""}'
 ```
 
+## Technical Details
+
+### Recent Updates
+
+**Version 3.2.1** (December 2025):
+- Added TOON output format for 30-60% token reduction
+- Implemented automatic response truncation for large payloads (>40k chars)
+- Raw API responses saved to `/tmp/mcp/mcp-server-atlassian-jira/` for reference
+- Updated to MCP SDK v1.23.0 with modern `registerTool` API
+- Fixed deprecated `/rest/api/3/search` endpoint (now use `/rest/api/3/search/jql`)
+- Updated all dependencies to latest versions (Zod v4.1.13, Commander v14.0.2)
+
+### Requirements
+
+- **Node.js**: 18.0.0 or higher
+- **MCP SDK**: v1.23.0 (uses modern registration APIs)
+- **Jira**: Cloud only (Server/Data Center not supported)
+
+### Architecture
+
+This server follows the 5-layer MCP architecture:
+1. **CLI Layer** - Human interface using Commander.js
+2. **Tools Layer** - AI interface with Zod validation
+3. **Controllers Layer** - Business logic and orchestration
+4. **Services Layer** - Direct Jira REST API calls
+5. **Utils Layer** - Cross-cutting concerns (logging, formatting, transport)
+
+### Debugging
+
+Enable debug logging by setting the `DEBUG` environment variable:
+
+```bash
+# In Claude Desktop config
+{
+  "mcpServers": {
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "@aashari/mcp-server-atlassian-jira"],
+      "env": {
+        "DEBUG": "true",
+        "ATLASSIAN_SITE_NAME": "your-company",
+        "ATLASSIAN_USER_EMAIL": "your.email@company.com",
+        "ATLASSIAN_API_TOKEN": "your_api_token"
+      }
+    }
+  }
+}
+```
+
+Debug logs are written to `~/.mcp/data/mcp-server-atlassian-jira.<session-id>.log`
+
+**Check raw API responses:** When responses are truncated, the full raw response is saved to `/tmp/mcp/mcp-server-atlassian-jira/<timestamp>-<random>.txt` with request/response details.
+
 ## Migration from v2.x
 
 Version 3.0 replaces 8+ specific tools with 5 generic HTTP method tools. If you're upgrading from v2.x:
@@ -326,7 +421,7 @@ jira_ls_projects, jira_get_project, jira_ls_issues, jira_get_issue,
 jira_create_issue, jira_ls_comments, jira_add_comment, jira_ls_statuses, ...
 ```
 
-**After (v3.0):**
+**After (v3.0+):**
 ```
 jira_get, jira_post, jira_put, jira_patch, jira_delete
 ```
@@ -338,6 +433,13 @@ jira_get, jira_post, jira_put, jira_patch, jira_delete
 - `jira_create_issue` -> `jira_post` with path `/rest/api/3/issue`
 - `jira_add_comment` -> `jira_post` with path `/rest/api/3/issue/{key}/comment`
 - `jira_ls_statuses` -> `jira_get` with path `/rest/api/3/status`
+
+**Benefits of v3.0+:**
+- Full access to any Jira REST API v3 endpoint (not just predefined tools)
+- JMESPath filtering for efficient data extraction
+- Consistent interface across all HTTP methods
+- TOON format for 30-60% token savings
+- Automatic response truncation with raw file logging
 
 ## Support
 
