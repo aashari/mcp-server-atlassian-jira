@@ -1,6 +1,6 @@
 {
   "name": "@aashari/mcp-server-atlassian-jira",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "Node.js/TypeScript MCP server for Atlassian Jira. Equips AI systems (LLMs) with tools to list/get projects, search/get issues (using JQL/ID), and view dev info (commits, PRs). Connects AI capabilities directly into Jira project management and issue tracking workflows.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

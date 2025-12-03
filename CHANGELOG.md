@@ -1,3 +1,10 @@
+# [3.3.0](https://github.com/aashari/mcp-server-atlassian-jira/compare/v3.2.1...v3.3.0) (2025-12-03)
+
+
+### Features
+
+* add raw response logging with truncation for large API responses ([eddadb4](https://github.com/aashari/mcp-server-atlassian-jira/commit/eddadb4746da826a594baf95cb4b2f1352360bf6))
+
 ## [3.2.1](https://github.com/aashari/mcp-server-atlassian-jira/compare/v3.2.0...v3.2.1) (2025-12-01)
 
 
