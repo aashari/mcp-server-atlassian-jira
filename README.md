@@ -34,6 +34,8 @@ Generate a Jira API Token:
 3. Give it a name like **"AI Assistant"**
 4. **Copy the generated token** immediately (you won't see it again!)
 
+> **Using Scoped API Tokens?** See [Scoped API Token Configuration](#scoped-api-token-configuration) below for additional setup.
+
 ### 2. Try It Instantly
 
 ```bash
@@ -103,6 +105,52 @@ Create `~/.mcp/configs.json` for system-wide configuration:
 ```
 
 **Alternative config keys:** The system also accepts `"atlassian-jira"`, `"@aashari/mcp-server-atlassian-jira"`, or `"mcp-server-atlassian-jira"` instead of `"jira"`.
+
+### Scoped API Token Configuration
+
+Atlassian is deprecating non-scoped API tokens in favor of [scoped API tokens](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/). Scoped tokens require a different URL format (`api.atlassian.com` instead of `site.atlassian.net`) — see [CLOUD-12617](https://jira.atlassian.com/browse/CLOUD-12617) for details.
+
+To use scoped API tokens, provide your Cloud ID instead of the site name:
+
+```bash
+export ATLASSIAN_USER_EMAIL="your.email@company.com"
+export ATLASSIAN_API_TOKEN="your_scoped_api_token"
+export ATLASSIAN_CLOUD_ID="your-cloud-id"
+```
+
+> **Note:** `ATLASSIAN_SITE_NAME` is not required when using scoped tokens with `ATLASSIAN_CLOUD_ID`.
+
+**How to find your Cloud ID:**
+
+Option 1 - Via tenant info endpoint:
+```bash
+curl https://your-company.atlassian.net/_edge/tenant_info
+```
+The response contains your `cloudId`.
+
+Option 2 - Via Atlassian Admin:
+1. Go to [admin.atlassian.com](https://admin.atlassian.com)
+2. Select your organization
+3. The Cloud ID is in the URL or available in the site settings
+
+**Claude Desktop config with scoped tokens:**
+```json
+{
+  "mcpServers": {
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "@aashari/mcp-server-atlassian-jira"],
+      "env": {
+        "ATLASSIAN_USER_EMAIL": "your.email@company.com",
+        "ATLASSIAN_API_TOKEN": "your_scoped_api_token",
+        "ATLASSIAN_CLOUD_ID": "your-cloud-id"
+      }
+    }
+  }
+}
+```
+
+> **Note:** If `ATLASSIAN_CLOUD_ID` is not set, the server uses the traditional URL format (`https://site.atlassian.net`), which only works with non-scoped API tokens.
 
 ## Available Tools
 
@@ -268,15 +316,20 @@ npx -y @aashari/mcp-server-atlassian-jira delete \
 
 ### "Authentication failed" or "403 Forbidden"
 
-1. **Check your API Token permissions**:
+1. **Using a scoped API token?** Scoped tokens require the `ATLASSIAN_CLOUD_ID` environment variable. See [Scoped API Token Configuration](#scoped-api-token-configuration). Without it, you'll get permission errors like:
+   - "You do not have permission to create issues in this project"
+   - "Issue does not exist or you do not have permission to see it"
+   - Empty results from endpoints that should return data
+
+2. **Check your API Token permissions**:
    - Go to [Atlassian API Tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
    - Make sure your token is still active and hasn't expired
 
-2. **Verify your site name format**:
+3. **Verify your site name format**:
    - If your Jira URL is `https://mycompany.atlassian.net`
    - Your site name should be just `mycompany`
 
-3. **Test your credentials**:
+4. **Test your credentials**:
    ```bash
    npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/myself"
    ```

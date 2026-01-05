@@ -19,7 +19,8 @@ transportLogger.debug('Transport utility initialized');
  * Interface for Atlassian API credentials
  */
 export interface AtlassianCredentials {
-	siteName: string;
+	siteName?: string;
+	cloudId?: string;
 	userEmail: string;
 	apiToken: string;
 }
@@ -54,17 +55,33 @@ export function getAtlassianCredentials(): AtlassianCredentials | null {
 	const siteName = config.get('ATLASSIAN_SITE_NAME');
 	const userEmail = config.get('ATLASSIAN_USER_EMAIL');
 	const apiToken = config.get('ATLASSIAN_API_TOKEN');
+	const cloudId = config.get('ATLASSIAN_CLOUD_ID');
 
-	if (!siteName || !userEmail || !apiToken) {
+	if (!userEmail || !apiToken) {
 		methodLogger.warn(
-			'Missing Atlassian credentials. Please set ATLASSIAN_SITE_NAME, ATLASSIAN_USER_EMAIL, and ATLASSIAN_API_TOKEN environment variables.',
+			'Missing Atlassian credentials. Please set ATLASSIAN_USER_EMAIL and ATLASSIAN_API_TOKEN environment variables.',
 		);
 		return null;
 	}
 
-	methodLogger.debug('Using Atlassian credentials');
+	if (!siteName && !cloudId) {
+		methodLogger.warn(
+			'Missing Atlassian site configuration. Please set either ATLASSIAN_SITE_NAME or ATLASSIAN_CLOUD_ID.',
+		);
+		return null;
+	}
+
+	if (cloudId) {
+		methodLogger.debug(
+			'Using Atlassian credentials with scoped token (cloudId provided)',
+		);
+	} else {
+		methodLogger.debug('Using Atlassian credentials');
+	}
+
 	return {
 		siteName,
+		cloudId,
 		userEmail,
 		apiToken,
 	};
@@ -87,14 +104,18 @@ export async function fetchAtlassian<T>(
 		'fetchAtlassian',
 	);
 
-	const { siteName, userEmail, apiToken } = credentials;
+	const { siteName, userEmail, apiToken, cloudId } = credentials;
 
 	// Ensure path starts with a slash
 	const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
 	// Construct the full URL
-	const baseUrl = `https://${siteName}.atlassian.net`;
-	const url = `${baseUrl}${normalizedPath}`;
+	// When cloudId is provided, use the scoped API token URL format (api.atlassian.com)
+	// Otherwise, use the traditional site-based URL format (site.atlassian.net)
+	// See: https://jira.atlassian.com/browse/CLOUD-12617
+	const url = cloudId
+		? `https://api.atlassian.com/ex/jira/${cloudId}${normalizedPath}`
+		: `https://${siteName}.atlassian.net${normalizedPath}`;
 
 	// Set up authentication and headers
 	const headers = {

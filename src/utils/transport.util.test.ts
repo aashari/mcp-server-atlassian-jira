@@ -49,38 +49,90 @@ describe('Transport Utility', () => {
 			expect(credentials.apiToken).toBeTruthy();
 		});
 
-		it('should return null when environment variables are missing', () => {
-			// Save original values
-			const origSiteName = config.get('ATLASSIAN_SITE_NAME');
-			const origUserEmail = config.get('ATLASSIAN_USER_EMAIL');
-			const origApiToken = config.get('ATLASSIAN_API_TOKEN');
+		it('should include cloudId when ATLASSIAN_CLOUD_ID is set', () => {
+			const testCloudId = 'test-cloud-id-12345';
+			const testConfig: Record<string, string | undefined> = {
+				ATLASSIAN_SITE_NAME: undefined,
+				ATLASSIAN_USER_EMAIL: 'test@example.com',
+				ATLASSIAN_API_TOKEN: 'test-token',
+				ATLASSIAN_CLOUD_ID: testCloudId,
+			};
 
-			// Create test environment without credentials
-			const testConfig = {
+			const originalGet = config.get.bind(config);
+
+			try {
+				config.get = (key: string) => testConfig[key];
+				const credentials = getAtlassianCredentials();
+
+				expect(credentials).not.toBeNull();
+				expect(credentials?.cloudId).toBe(testCloudId);
+				expect(credentials?.siteName).toBeUndefined();
+			} finally {
+				config.get = originalGet;
+			}
+		});
+
+		it('should work with siteName only (no cloudId)', () => {
+			const testConfig: Record<string, string | undefined> = {
+				ATLASSIAN_SITE_NAME: 'test-site',
+				ATLASSIAN_USER_EMAIL: 'test@example.com',
+				ATLASSIAN_API_TOKEN: 'test-token',
+				ATLASSIAN_CLOUD_ID: undefined,
+			};
+
+			const originalGet = config.get.bind(config);
+
+			try {
+				config.get = (key: string) => testConfig[key];
+				const credentials = getAtlassianCredentials();
+
+				expect(credentials).not.toBeNull();
+				expect(credentials?.siteName).toBe('test-site');
+				expect(credentials?.cloudId).toBeUndefined();
+			} finally {
+				config.get = originalGet;
+			}
+		});
+
+		it('should return null when neither siteName nor cloudId is set', () => {
+			const testConfig: Record<string, string | undefined> = {
+				ATLASSIAN_SITE_NAME: undefined,
+				ATLASSIAN_USER_EMAIL: 'test@example.com',
+				ATLASSIAN_API_TOKEN: 'test-token',
+				ATLASSIAN_CLOUD_ID: undefined,
+			};
+
+			const originalGet = config.get.bind(config);
+
+			try {
+				config.get = (key: string) => testConfig[key];
+				const credentials = getAtlassianCredentials();
+
+				expect(credentials).toBeNull();
+			} finally {
+				config.get = originalGet;
+			}
+		});
+
+		it('should return null when environment variables are missing', () => {
+			const originalGet = config.get.bind(config);
+
+			const testConfig: Record<string, string | undefined> = {
 				ATLASSIAN_SITE_NAME: undefined,
 				ATLASSIAN_USER_EMAIL: undefined,
 				ATLASSIAN_API_TOKEN: undefined,
+				ATLASSIAN_CLOUD_ID: undefined,
 			};
 
 			// Test with missing credentials
 			try {
-				// Use Object.defineProperty to temporarily change config.get behavior without mocking
-				config.get = (key: string) =>
-					testConfig[key as keyof typeof testConfig];
-
-				// Call the function
+				config.get = (key: string) => testConfig[key];
 				const credentials = getAtlassianCredentials();
 
-				// Verify the result is null
+				// Verify the credentials are null
 				expect(credentials).toBeNull();
 			} finally {
-				// Restore config behavior for subsequent tests
-				config.get = (key: string) => {
-					if (key === 'ATLASSIAN_SITE_NAME') return origSiteName;
-					if (key === 'ATLASSIAN_USER_EMAIL') return origUserEmail;
-					if (key === 'ATLASSIAN_API_TOKEN') return origApiToken;
-					return config.get(key);
-				};
+				config.get = originalGet;
 			}
 		});
 	});
