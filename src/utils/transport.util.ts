@@ -8,6 +8,7 @@ import {
 	McpError,
 } from './error.util.js';
 import { saveRawResponse } from './response.util.js';
+import { Blob } from 'buffer';
 
 // Create a contextualized logger for this file
 const transportLogger = Logger.forContext('utils/transport.util.ts');
@@ -344,6 +345,279 @@ export async function fetchAtlassian<T>(
 
 		throw createUnexpectedError(
 			`Unexpected error while calling Jira API: ${error instanceof Error ? error.message : String(error)}`,
+			error,
+		);
+	}
+}
+
+/**
+ * Upload a file to Atlassian API using multipart/form-data
+ * @param credentials Atlassian API credentials
+ * @param path API endpoint path (without base URL)
+ * @param fileBuffer The file content as a Buffer
+ * @param fileName The name of the file
+ * @param mimeType The MIME type of the file
+ * @returns Transport response with data and raw response path
+ */
+export async function fetchAtlassianMultipart<T>(
+	credentials: AtlassianCredentials,
+	path: string,
+	fileBuffer: Buffer,
+	fileName: string,
+	mimeType: string,
+): Promise<TransportResponse<T>> {
+	const methodLogger = Logger.forContext(
+		'utils/transport.util.ts',
+		'fetchAtlassianMultipart',
+	);
+
+	const { siteName, userEmail, apiToken } = credentials;
+
+	// Ensure path starts with a slash
+	const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+	// Construct the full URL
+	const baseUrl = `https://${siteName}.atlassian.net`;
+	const url = `${baseUrl}${normalizedPath}`;
+
+	// Create FormData and append the file
+	const formData = new FormData();
+	const blob = new Blob([fileBuffer], { type: mimeType });
+	formData.append('file', blob, fileName);
+
+	// Set up authentication and headers
+	// Note: Content-Type is NOT set manually - fetch will set it with the boundary
+	const headers: Record<string, string> = {
+		Authorization: `Basic ${Buffer.from(`${userEmail}:${apiToken}`).toString('base64')}`,
+		Accept: 'application/json',
+		'X-Atlassian-Token': 'no-check', // Required for file uploads
+	};
+
+	methodLogger.debug(`Uploading file to Atlassian API: ${url}`, {
+		fileName,
+		mimeType,
+		fileSize: fileBuffer.length,
+	});
+
+	const startTime = performance.now();
+
+	try {
+		const response = await fetch(url, {
+			method: 'POST',
+			headers,
+			body: formData,
+		});
+
+		const endTime = performance.now();
+		const requestDuration = (endTime - startTime).toFixed(2);
+
+		methodLogger.debug(
+			`Raw response received: ${response.status} ${response.statusText}`,
+			{
+				url,
+				status: response.status,
+				statusText: response.statusText,
+			},
+		);
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			methodLogger.error(
+				`API error: ${response.status} ${response.statusText}`,
+				{ errorText, url },
+			);
+
+			let errorMessage = `${response.status} ${response.statusText}`;
+			let parsedError = null;
+
+			try {
+				if (
+					errorText &&
+					(errorText.startsWith('{') || errorText.startsWith('['))
+				) {
+					parsedError = JSON.parse(errorText);
+					if (parsedError.errorMessages?.length > 0) {
+						errorMessage = parsedError.errorMessages.join('; ');
+					} else if (parsedError.message) {
+						errorMessage = parsedError.message;
+					}
+				}
+			} catch {
+				if (errorText && errorText.trim()) {
+					errorMessage = errorText;
+				}
+			}
+
+			if (response.status === 401) {
+				throw createAuthInvalidError(
+					`Authentication failed. Jira API: ${errorMessage}`,
+					parsedError || errorText,
+				);
+			} else if (response.status === 403) {
+				throw createAuthInvalidError(
+					`Insufficient permissions. Jira API: ${errorMessage}`,
+					parsedError || errorText,
+				);
+			} else if (response.status === 404) {
+				throw createNotFoundError(
+					`Resource not found. Jira API: ${errorMessage}`,
+					parsedError || errorText,
+				);
+			} else {
+				throw createApiError(
+					`Jira API request failed. Detail: ${errorMessage}`,
+					response.status,
+					parsedError || errorText,
+				);
+			}
+		}
+
+		const responseText = await response.text();
+		if (!responseText || responseText.trim() === '') {
+			return { data: {} as T, rawResponsePath: null };
+		}
+
+		try {
+			const responseJson = JSON.parse(responseText);
+			methodLogger.debug(`Response body:`, responseJson);
+
+			const rawResponsePath = saveRawResponse(
+				url,
+				'POST',
+				{ fileName, mimeType, fileSize: fileBuffer.length },
+				responseJson,
+				response.status,
+				parseFloat(requestDuration),
+			);
+
+			return { data: responseJson as T, rawResponsePath };
+		} catch {
+			return {
+				data: responseText as unknown as T,
+				rawResponsePath: null,
+			};
+		}
+	} catch (error) {
+		methodLogger.error(`Request failed`, error);
+
+		if (error instanceof McpError) {
+			throw error;
+		}
+
+		if (error instanceof TypeError && error.message.includes('fetch')) {
+			throw createApiError(
+				`Network error connecting to Jira API: ${error.message}`,
+				500,
+				error,
+			);
+		}
+
+		throw createUnexpectedError(
+			`Unexpected error while uploading to Jira API: ${error instanceof Error ? error.message : String(error)}`,
+			error,
+		);
+	}
+}
+
+/**
+ * Fetch binary data from Atlassian API
+ * @param credentials Atlassian API credentials
+ * @param url Full URL to fetch (can be content URL from attachment metadata)
+ * @returns Buffer containing the binary data
+ */
+export async function fetchAtlassianBinary(
+	credentials: AtlassianCredentials,
+	url: string,
+): Promise<Buffer> {
+	const methodLogger = Logger.forContext(
+		'utils/transport.util.ts',
+		'fetchAtlassianBinary',
+	);
+
+	const { userEmail, apiToken } = credentials;
+
+	const headers = {
+		Authorization: `Basic ${Buffer.from(`${userEmail}:${apiToken}`).toString('base64')}`,
+	};
+
+	methodLogger.debug(`Fetching binary data from: ${url}`);
+
+	const startTime = performance.now();
+
+	try {
+		const response = await fetch(url, {
+			method: 'GET',
+			headers,
+		});
+
+		const endTime = performance.now();
+		const requestDuration = (endTime - startTime).toFixed(2);
+
+		methodLogger.debug(
+			`Raw response received: ${response.status} ${response.statusText}`,
+			{
+				url,
+				status: response.status,
+				duration: `${requestDuration}ms`,
+			},
+		);
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			methodLogger.error(
+				`API error: ${response.status} ${response.statusText}`,
+				{ errorText, url },
+			);
+
+			const errorMessage = `${response.status} ${response.statusText}`;
+
+			if (response.status === 401) {
+				throw createAuthInvalidError(
+					`Authentication failed. Jira API: ${errorMessage}`,
+					errorText,
+				);
+			} else if (response.status === 403) {
+				throw createAuthInvalidError(
+					`Insufficient permissions. Jira API: ${errorMessage}`,
+					errorText,
+				);
+			} else if (response.status === 404) {
+				throw createNotFoundError(
+					`Resource not found. Jira API: ${errorMessage}`,
+					errorText,
+				);
+			} else {
+				throw createApiError(
+					`Jira API request failed. Detail: ${errorMessage}`,
+					response.status,
+					errorText,
+				);
+			}
+		}
+
+		const arrayBuffer = await response.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+
+		methodLogger.debug(`Downloaded ${buffer.length} bytes`);
+
+		return buffer;
+	} catch (error) {
+		methodLogger.error(`Request failed`, error);
+
+		if (error instanceof McpError) {
+			throw error;
+		}
+
+		if (error instanceof TypeError && error.message.includes('fetch')) {
+			throw createApiError(
+				`Network error connecting to Jira API: ${error.message}`,
+				500,
+				error,
+			);
+		}
+
+		throw createUnexpectedError(
+			`Unexpected error while downloading from Jira API: ${error instanceof Error ? error.message : String(error)}`,
 			error,
 		);
 	}

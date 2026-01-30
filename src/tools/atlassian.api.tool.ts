@@ -8,6 +8,10 @@ import {
 	RequestWithBodyArgs,
 	type RequestWithBodyArgsType,
 	DeleteApiToolArgs,
+	AttachToolArgs,
+	type AttachToolArgsType,
+	GetAttachmentToolArgs,
+	type GetAttachmentToolArgsType,
 } from './atlassian.api.types.js';
 import {
 	handleGet,
@@ -15,6 +19,8 @@ import {
 	handlePut,
 	handlePatch,
 	handleDelete,
+	handleAttach,
+	handleGetAttachment,
 } from '../controllers/atlassian.api.controller.js';
 
 // Create a contextualized logger for this file
@@ -122,6 +128,111 @@ const post = createWriteHandler('POST', handlePost);
 const put = createWriteHandler('PUT', handlePut);
 const patch = createWriteHandler('PATCH', handlePatch);
 const del = createReadHandler('DELETE', handleDelete);
+
+/**
+ * Creates an MCP tool handler for attachment operations
+ *
+ * @param methodName - Name of the method for logging
+ * @param handler - Controller handler function
+ * @returns MCP tool handler function
+ */
+function createAttachHandler(
+	methodName: string,
+	handler: (
+		options: AttachToolArgsType,
+	) => Promise<{ content: string; rawResponsePath?: string | null }>,
+) {
+	return async (args: Record<string, unknown>) => {
+		const methodLogger = Logger.forContext(
+			'tools/atlassian.api.tool.ts',
+			methodName.toLowerCase(),
+		);
+		methodLogger.debug(`${methodName} request with args:`, {
+			issueIdOrKey: args.issueIdOrKey,
+			hasFilePath: !!args.filePath,
+			hasTextContent: !!args.textContent,
+			fileName: args.fileName,
+		});
+
+		try {
+			const result = await handler(args as AttachToolArgsType);
+
+			methodLogger.debug(
+				'Successfully received response from controller',
+			);
+
+			return {
+				content: [
+					{
+						type: 'text' as const,
+						text: truncateForAI(
+							result.content,
+							result.rawResponsePath,
+						),
+					},
+				],
+			};
+		} catch (error) {
+			methodLogger.error(`Failed to ${methodName}`, error);
+			return formatErrorForMcpTool(error);
+		}
+	};
+}
+
+/**
+ * Creates an MCP tool handler for attachment download
+ *
+ * @param methodName - Name of the method for logging
+ * @param handler - Controller handler function
+ * @returns MCP tool handler function
+ */
+function createGetAttachmentHandler(
+	methodName: string,
+	handler: (
+		options: GetAttachmentToolArgsType,
+	) => Promise<{ content: string; rawResponsePath?: string | null }>,
+) {
+	return async (args: Record<string, unknown>) => {
+		const methodLogger = Logger.forContext(
+			'tools/atlassian.api.tool.ts',
+			methodName.toLowerCase(),
+		);
+		methodLogger.debug(`${methodName} request with args:`, {
+			attachmentId: args.attachmentId,
+			outputPath: args.outputPath,
+		});
+
+		try {
+			const result = await handler(args as GetAttachmentToolArgsType);
+
+			methodLogger.debug(
+				'Successfully received response from controller',
+			);
+
+			return {
+				content: [
+					{
+						type: 'text' as const,
+						text: truncateForAI(
+							result.content,
+							result.rawResponsePath,
+						),
+					},
+				],
+			};
+		} catch (error) {
+			methodLogger.error(`Failed to ${methodName}`, error);
+			return formatErrorForMcpTool(error);
+		}
+	};
+}
+
+// Create attachment tool handlers
+const attach = createAttachHandler('attach', handleAttach);
+const getAttachment = createGetAttachmentHandler(
+	'getAttachment',
+	handleGetAttachment,
+);
 
 // Tool descriptions
 const JIRA_GET_DESCRIPTION = `Read any Jira data. Returns TOON format by default (30-60% fewer tokens than JSON).
@@ -247,6 +358,55 @@ Note: Most DELETE endpoints return 204 No Content on success.
 
 API reference: https://developer.atlassian.com/cloud/jira/platform/rest/v3/`;
 
+const JIRA_ATTACH_DESCRIPTION = `Upload a file attachment to a Jira issue.
+
+**Two ways to attach files:**
+
+1. **Local file:** Provide \`filePath\` to upload an existing file
+   \`\`\`
+   jira_attach({
+     issueIdOrKey: "PROJ-123",
+     filePath: "/path/to/screenshot.png"
+   })
+   \`\`\`
+
+2. **Text content:** Provide \`textContent\` and \`fileName\` to create and upload a text file
+   \`\`\`
+   jira_attach({
+     issueIdOrKey: "PROJ-123",
+     textContent: "Error log contents here...",
+     fileName: "error.log"
+   })
+   \`\`\`
+
+**Supported file types:** Images (png, jpg, gif), documents (pdf, doc, xls), text (txt, csv, json, md, log), archives (zip, tar), code files, and more.
+
+**Returns:** Attachment metadata including ID, filename, size, and URL.
+
+**To list existing attachments:** Use jira_get with:
+- path: \`/rest/api/3/issue/{issueKey}\`
+- jq: \`fields.attachment[*].{id:id,filename:filename,size:size}\``;
+
+const JIRA_GET_ATTACHMENT_DESCRIPTION = `Download a Jira attachment to a local file.
+
+**Usage:**
+\`\`\`
+jira_get_attachment({
+  attachmentId: "12345",
+  outputPath: "/tmp/report.pdf"  // optional
+})
+\`\`\`
+
+**Parameters:**
+- \`attachmentId\` (required): The attachment ID from issue metadata
+- \`outputPath\` (optional): Where to save the file. If not provided, saves to system temp directory with original filename.
+
+**To find attachment IDs:** Use jira_get with:
+- path: \`/rest/api/3/issue/{issueKey}\`
+- jq: \`fields.attachment[*].{id:id,filename:filename,size:size}\`
+
+**Returns:** Download result with file path, filename, MIME type, and size.`;
+
 /**
  * Register generic Jira API tools with the MCP server.
  * Uses the modern registerTool API (SDK v1.22.0+) instead of deprecated tool() method.
@@ -311,6 +471,28 @@ function registerTools(server: McpServer) {
 			inputSchema: DeleteApiToolArgs,
 		},
 		del,
+	);
+
+	// Register the ATTACH tool for file uploads
+	server.registerTool(
+		'jira_attach',
+		{
+			title: 'Jira Attach File',
+			description: JIRA_ATTACH_DESCRIPTION,
+			inputSchema: AttachToolArgs,
+		},
+		attach,
+	);
+
+	// Register the GET ATTACHMENT tool for file downloads
+	server.registerTool(
+		'jira_get_attachment',
+		{
+			title: 'Jira Get Attachment',
+			description: JIRA_GET_ATTACHMENT_DESCRIPTION,
+			inputSchema: GetAttachmentToolArgs,
+		},
+		getAttachment,
 	);
 
 	registerLogger.debug('Successfully registered API tools');
