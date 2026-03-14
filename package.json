@@ -105,7 +105,7 @@
     "express": "^5.1.0",
     "jmespath": "^0.16.0",
     "turndown": "^7.2.2",
-    "zod": "^4.1.13"
+    "zod": "^4.2.0"
   },
   "directories": {
     "example": "examples"
