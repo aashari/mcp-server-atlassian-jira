@@ -1,4 +1,9 @@
-import { getAtlassianCredentials, fetchAtlassian } from './transport.util.js';
+import {
+	getAtlassianCredentials,
+	fetchAtlassian,
+	fetchAtlassianMultipart,
+	fetchAtlassianBinary,
+} from './transport.util.js';
 import { config } from './config.util.js';
 
 /**
@@ -197,5 +202,91 @@ describe('Transport Utility', () => {
 			expect(result.data).toHaveProperty('maxResults', 1); // Should respect maxResults=1
 			expect(result.data.values.length).toBeLessThanOrEqual(1);
 		}, 15000); // Increased timeout for real API call
+	});
+
+	describe('fetchAtlassianMultipart', () => {
+		it('should handle authentication errors correctly', async () => {
+			// Create fake credentials to test error handling
+			const fakeCredentials = {
+				siteName: 'fake-site-that-does-not-exist',
+				userEmail: 'fake@example.com',
+				apiToken: 'fake-token',
+			};
+
+			const testBuffer = Buffer.from('test content');
+
+			// Expect the call to fail with an auth or connection error
+			await expect(
+				fetchAtlassianMultipart(
+					fakeCredentials,
+					'/rest/api/3/issue/TEST-1/attachments',
+					testBuffer,
+					'test.txt',
+					'text/plain',
+				),
+			).rejects.toThrow();
+		}, 15000);
+
+		it('should properly format multipart request', async () => {
+			// This test will be skipped if credentials are not available
+			const credentials = getAtlassianCredentials();
+			if (!credentials) {
+				console.warn(
+					'Skipping test: No Atlassian credentials available',
+				);
+				return;
+			}
+
+			// Test with a non-existent issue to verify proper error handling
+			// (not auth error, but 404 for issue)
+			const testBuffer = Buffer.from('test content');
+
+			await expect(
+				fetchAtlassianMultipart(
+					credentials,
+					'/rest/api/3/issue/NONEXISTENT-99999/attachments',
+					testBuffer,
+					'test.txt',
+					'text/plain',
+				),
+			).rejects.toThrow(/not found|does not exist/i);
+		}, 15000);
+	});
+
+	describe('fetchAtlassianBinary', () => {
+		it('should handle authentication errors correctly', async () => {
+			// Create fake credentials to test error handling
+			const fakeCredentials = {
+				siteName: 'fake-site-that-does-not-exist',
+				userEmail: 'fake@example.com',
+				apiToken: 'fake-token',
+			};
+
+			// Expect the call to fail with an auth or connection error
+			await expect(
+				fetchAtlassianBinary(
+					fakeCredentials,
+					'https://fake-site-that-does-not-exist.atlassian.net/rest/api/3/attachment/content/12345',
+				),
+			).rejects.toThrow();
+		}, 15000);
+
+		it('should handle 404 errors for non-existent attachments', async () => {
+			// This test will be skipped if credentials are not available
+			const credentials = getAtlassianCredentials();
+			if (!credentials) {
+				console.warn(
+					'Skipping test: No Atlassian credentials available',
+				);
+				return;
+			}
+
+			// Try to download a non-existent attachment
+			const fakeUrl = `https://${credentials.siteName}.atlassian.net/rest/api/3/attachment/content/99999999`;
+
+			await expect(
+				fetchAtlassianBinary(credentials, fakeUrl),
+			).rejects.toThrow(/not found/i);
+		}, 15000);
 	});
 });

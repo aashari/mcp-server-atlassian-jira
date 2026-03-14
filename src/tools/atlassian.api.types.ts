@@ -108,3 +108,103 @@ export type PatchApiToolArgsType = RequestWithBodyArgsType;
  */
 export const DeleteApiToolArgs = GetApiToolArgs;
 export type DeleteApiToolArgsType = GetApiToolArgsType;
+
+/**
+ * Schema for jira_attach tool arguments (file upload)
+ * Supports either:
+ * - filePath: Upload an existing local file
+ * - textContent + fileName: Create a file from text content
+ */
+export const AttachToolArgs = z
+	.object({
+		/**
+		 * The Jira issue ID or key to attach the file to
+		 */
+		issueIdOrKey: z
+			.string()
+			.min(1, 'Issue ID or key is required')
+			.describe(
+				'The Jira issue ID or key to attach the file to (e.g., "PROJ-123" or "10001")',
+			),
+
+		/**
+		 * Path to a local file to upload
+		 */
+		filePath: z
+			.string()
+			.optional()
+			.describe(
+				'Path to the local file to upload. Use this OR textContent/fileName, not both.',
+			),
+
+		/**
+		 * Text content to upload as a file
+		 */
+		textContent: z
+			.string()
+			.optional()
+			.describe(
+				'Text content to upload as a file. Requires fileName to be specified.',
+			),
+
+		/**
+		 * Filename for text content uploads
+		 */
+		fileName: z
+			.string()
+			.optional()
+			.describe(
+				'Filename to use when uploading textContent (e.g., "notes.txt", "report.md")',
+			),
+	})
+	.refine(
+		(data) => {
+			// Must have either filePath OR textContent (not both, not neither)
+			const hasFilePath = !!data.filePath;
+			const hasTextContent = !!data.textContent;
+			return (hasFilePath || hasTextContent) && !(hasFilePath && hasTextContent);
+		},
+		{
+			message:
+				'Must provide either "filePath" (for local files) OR "textContent" (for text), but not both',
+		},
+	)
+	.refine(
+		(data) => {
+			// If textContent is provided, fileName is required
+			if (data.textContent && !data.fileName) {
+				return false;
+			}
+			return true;
+		},
+		{
+			message: 'fileName is required when using textContent',
+		},
+	);
+export type AttachToolArgsType = z.infer<typeof AttachToolArgs>;
+
+/**
+ * Schema for jira_get_attachment tool arguments (file download)
+ */
+export const GetAttachmentToolArgs = z.object({
+	/**
+	 * The attachment ID to download
+	 */
+	attachmentId: z
+		.string()
+		.min(1, 'Attachment ID is required')
+		.describe(
+			'The Jira attachment ID to download. Get this from issue metadata using jira_get with path "/rest/api/3/issue/{issueKey}" and jq "fields.attachment[*].{id:id,filename:filename}"',
+		),
+
+	/**
+	 * Optional path where to save the file
+	 */
+	outputPath: z
+		.string()
+		.optional()
+		.describe(
+			'Local file path where to save the attachment. If not provided, saves to system temp directory with original filename.',
+		),
+});
+export type GetAttachmentToolArgsType = z.infer<typeof GetAttachmentToolArgs>;
