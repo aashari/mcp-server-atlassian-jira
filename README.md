@@ -52,6 +52,10 @@ npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/project/DEV"
 npx -y @aashari/mcp-server-atlassian-jira get --path "/rest/api/3/issue/PROJ-123" --jq "{key: key, summary: fields.summary, status: fields.status.name}"
 ```
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/aashari-mcp-server-atlassian-jira).
+
 ## Connect to AI Assistants
 
 ### For Claude Desktop Users
